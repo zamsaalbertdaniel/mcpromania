@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-const LOGO_SRC = "https://raw.githubusercontent.com/zamsaalbertdaniel/mcpromania/main/logo.png";
-
 const DATA_STREAMS = [
   "MCP.initialize → session.ready",
   "tool.anaf.lookup_cui(RO12345678)",
@@ -46,7 +44,12 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        <img src={LOGO_SRC} alt="MCP Romania" className="logo" />
+        <img
+          src="/logo.png"
+          alt="MCP Romania"
+          className="logo"
+          decoding="async"
+        />
         <div className="scanline" />
       </div>
 
