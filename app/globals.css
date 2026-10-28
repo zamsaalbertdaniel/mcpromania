@@ -54,9 +54,10 @@ html, body { height: 100%; background: #05070a; color: #e8e8e8; font-family: 'In
   display: flex;
   align-items: center;
   justify-content: center;
+  margin-bottom: 1.5rem;
 }
 .logo {
-  width: min(520px, 70vw);
+  width: min(480px, 68vw);
   height: auto;
   filter: drop-shadow(0 0 40px rgba(30, 64, 175, 0.45))
           drop-shadow(0 0 60px rgba(245, 158, 11, 0.25))
@@ -97,7 +98,7 @@ html, body { height: 100%; background: #05070a; color: #e8e8e8; font-family: 'In
 
 .data-streams {
   position: absolute;
-  top: 8%;
+  top: 6%;
   left: 50%;
   transform: translateX(-50%);
   width: min(900px, 90vw);
@@ -126,27 +127,38 @@ html, body { height: 100%; background: #05070a; color: #e8e8e8; font-family: 'In
   to { opacity: 1; transform: translateY(0); }
 }
 
-.coming-soon {
-  position: absolute;
-  bottom: 8%;
+.brand {
   z-index: 3;
-  font-size: clamp(1.8rem, 4vw, 2.8rem);
-  font-weight: 600;
-  letter-spacing: 0.45em;
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
   background: linear-gradient(90deg, #60a5fa, #fbbf24, #f87171);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin: 0.5rem 0 0.25rem;
   animation: textGlow 3s ease-in-out infinite alternate;
 }
+
+.coming-soon {
+  z-index: 3;
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  font-weight: 500;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: #a3a3a3;
+  opacity: 0.85;
+}
+
 @keyframes textGlow {
   from { filter: drop-shadow(0 0 8px rgba(96,165,250,0.4)); }
   to { filter: drop-shadow(0 0 18px rgba(251,191,36,0.6)); }
 }
 
 @media (max-width: 640px) {
-  .logo { width: min(320px, 85vw); }
-  .data-streams { font-size: 9px; top: 6%; }
-  .coming-soon { letter-spacing: 0.3em; bottom: 6%; }
+  .logo { width: min(300px, 82vw); }
+  .data-streams { font-size: 9px; top: 5%; }
+  .brand { letter-spacing: 0.25em; }
+  .coming-soon { letter-spacing: 0.35em; }
 }
