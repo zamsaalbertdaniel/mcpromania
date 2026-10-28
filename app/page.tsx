@@ -42,8 +42,14 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        {/* Logo-ul tău va fi aici — încărcă public/logo.png și schimbă src-ul */}
-        <div className="logo-placeholder">MCP<br/>ROMANIA</div>
+        <img
+          src="/logo.png"
+          alt="MCP Romania"
+          className="logo"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
         <div className="scanline" />
       </div>
 
