@@ -38,7 +38,7 @@ export default function Home() {
       <div className="grid-bg" />
       <div className="glow-orbs">
         <div className="orb blue" />
-        <div className="orb gold" />
+        <div className="orb yellow" />
         <div className="orb red" />
       </div>
 
