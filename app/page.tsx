@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAIAAAAP3aGbAAAAAElFTkSuQmCC";
+
 const DATA_STREAMS = [
   "MCP.initialize → session.ready",
   "tool.anaf.lookup_cui(RO12345678)",
@@ -44,14 +46,7 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        <img
-          src="/logo.png"
-          alt="MCP Romania"
-          className="logo"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
+        <img src={LOGO_SRC} alt="MCP Romania" className="logo" />
         <div className="scanline" />
       </div>
 
