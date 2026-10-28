@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-// Logo-ul tău exact va fi încărcat din public/logo.png
-// Urcă imaginea originală în public/logo.png și va apărea automat cu toate efectele.
+const LOGO_SRC = "https://raw.githubusercontent.com/zamsaalbertdaniel/mcpromania/main/logo.png";
 
 const DATA_STREAMS = [
   "MCP.initialize → session.ready",
@@ -47,15 +46,7 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        <img
-          src="/logo.png"
-          alt="MCP Romania"
-          className="logo"
-          onError={(e) => {
-            const img = e.target as HTMLImageElement;
-            img.style.opacity = '0.3';
-          }}
-        />
+        <img src={LOGO_SRC} alt="MCP Romania" className="logo" />
         <div className="scanline" />
       </div>
 
