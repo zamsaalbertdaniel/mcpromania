@@ -1,23 +1,23 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from 'react';
 
 const DATA_STREAMS = [
-  "MCP.initialize → session.ready",
-  "tool.anaf.lookup_cui(RO12345678)",
-  "ANAF.status: ACTIV | TVA: DA | e-Factura: DA",
-  "tool.portaljust.search_cases(cui=...)",
-  "PortalJust: 0 insolvență | 2 dosare civile",
-  "tool.bnr.exchange_rate(EUR)",
-  "BNR: 1 EUR = 4.97 RON",
-  "tool.seap.sync_tenders(cpv=48000000)",
-  "SEAP: 14 anunțuri noi sincronizate",
-  "tool.smartbill.create_invoice(...)",
-  "circuit_breaker: CLOSED | cache_hit: 94%",
-  "rate_limit: 12/1000 (Pro plan)",
-  "MCP.tool_call.completed in 187ms",
-  "multi_tenant.rls: enforced",
-  "AES-256-GCM key_rotated",
+  'MCP.initialize → session.ready',
+  'tool.anaf.lookup_cui(RO12345678)',
+  'ANAF.status: ACTIV | TVA: DA | e-Factura: DA',
+  'tool.portaljust.search_cases(cui=...)',
+  'PortalJust: 0 insolvență | 2 dosare civile',
+  'tool.bnr.exchange_rate(EUR)',
+  'BNR: 1 EUR = 4.97 RON',
+  'tool.seap.sync_tenders(cpv=48000000)',
+  'SEAP: 14 anunțuri noi sincronizate',
+  'tool.smartbill.create_invoice(...)',
+  'circuit_breaker: CLOSED | cache_hit: 94%',
+  'rate_limit: 12/1000 (Pro plan)',
+  'MCP.tool_call.completed in 187ms',
+  'multi_tenant.rls: enforced',
+  'AES-256-GCM key_rotated',
 ];
 
 export default function Home() {
@@ -25,7 +25,7 @@ export default function Home() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setStreams(prev => {
+      setStreams((prev) => {
         const next = [...prev, DATA_STREAMS[Math.floor(Math.random() * DATA_STREAMS.length)]];
         return next.slice(-6);
       });
@@ -44,12 +44,7 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        <img
-          src="/logo.png"
-          alt="MCP Romania"
-          className="logo"
-          decoding="async"
-        />
+        <img src="/logo.png" alt="MCP Romania" className="logo" decoding="async" />
         <div className="scanline" />
       </div>
 

@@ -3,7 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'mcpromania.ro – MCP Gateway pentru România',
-  description: 'Platforma MCP nativă pentru date ANAF, PortalJust, SEAP și integrări de facturare. Conectează AI-ul tău (Claude, Cursor) la infrastructura reală din România.',
+  description:
+    'Platforma MCP nativă pentru date ANAF, PortalJust, SEAP și integrări de facturare. Conectează AI-ul tău (Claude, Cursor) la infrastructura reală din România.',
   icons: {
     icon: [
       { url: '/logo.png', sizes: 'any' },
@@ -14,11 +15,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ro">
       <head>
