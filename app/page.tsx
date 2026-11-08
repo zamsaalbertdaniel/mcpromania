@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
 const DATA_STREAMS = [
@@ -44,7 +45,16 @@ export default function Home() {
 
       <div className="logo-container">
         <div className="logo-pulse" />
-        <img src="/logo.png" alt="MCP Romania" className="logo" decoding="async" />
+        <Image
+          src="/logo.png"
+          alt="MCP Romania"
+          width={2048}
+          height={2048}
+          sizes="(max-width: 640px) min(290px, 80vw), min(460px, 65vw)"
+          priority
+          className="logo"
+          decoding="async"
+        />
         <div className="scanline" />
       </div>
 
