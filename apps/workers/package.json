@@ -1,0 +1,9 @@
+{
+  "name": "@mcpromania/workers",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "bullmq": "^5.41.6",
+    "ioredis": "^5.5.0"
+  }
+}

@@ -1,5 +1,23 @@
+# Dependencies
 node_modules
+.pnpm-store
+
+# Build Outputs
+dist
+build
 .next
+out
+.turbo
+*.tsbuildinfo
+next-env.d.ts
+
+# Deployment & Hosting
 .vercel
+
+# Environment & Secrets
 .env*
 !.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
