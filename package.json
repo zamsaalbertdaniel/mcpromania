@@ -5,7 +5,8 @@
   "packageManager": "pnpm@12.18.0",
   "scripts": {
     "dev": "pnpm --filter dashboard dev",
-    "build": "pnpm --filter dashboard build",
+    "build": "turbo run build --filter=@mcpromania/dashboard --filter=@mcpromania/gateway",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
     "format": "prettier --write .",

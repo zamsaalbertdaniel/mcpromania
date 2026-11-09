@@ -1,5 +1,42 @@
 {
   "name": "@mcpromania/gateway",
-  "version": "0.0.0",
-  "private": true
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.8",
+    "@mcpromania/types": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@supabase/supabase-js": "^2.49.4",
+    "dotenv": "^16.4.7",
+    "fast-xml-parser": "^4.5.1",
+    "fetch-to-node": "^2.1.0",
+    "hono": "^4.6.14",
+    "ioredis": "^5.5.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.14.10",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.7",
+    "prettier": "^3.9.10",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.3",
+    "vitest": "^3.0.5"
+  }
 }

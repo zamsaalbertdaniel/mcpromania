@@ -3,16 +3,37 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --sourcemap --target es2022",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@typescript-eslint/eslint-plugin": "^8.19.0",
+    "@typescript-eslint/parser": "^8.19.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-prettier": "^5.5.7",
+    "prettier": "^3.9.10",
+    "tsup": "^8.3.5",
     "typescript": "^5.5.3"
   }
 }
