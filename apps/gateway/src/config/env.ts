@@ -6,7 +6,7 @@ export const EnvSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   ANAF_API_URL: z.string().url().default('https://api.anaf.ro/PlatitorTvaRest/api/v8/ws/tva'),
-  BNR_XML_URL: z.string().url().default('https://www.bnr.ro/nbrfxrates.xml'),
+  BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   CIRCUIT_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),

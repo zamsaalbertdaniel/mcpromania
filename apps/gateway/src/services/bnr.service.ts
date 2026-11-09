@@ -10,11 +10,12 @@ const STALE_TTL_SEC = 172_800;
 
 const parser = new XMLParser({
   ignoreAttributes: false,
+  removeNSPrefix: true,
   attributeNamePrefix: '@_',
   textNodeName: '#text',
   parseTagValue: true,
   trimValues: true,
-  isArray: (tagName) => tagName === 'Rate',
+  isArray: (tagName) => localName(tagName) === 'Rate',
 });
 
 export type BnrServiceDeps = {
@@ -72,12 +73,12 @@ export function parseBnrXml(xml: string): BnrRates {
   } catch {
     throw new AppError(502, 'BAD_UPSTREAM', 'XML BNR invalid');
   }
-  const root = asRecord(asRecord(parsed).DataSet);
-  const header = asRecord(root.Header);
-  const body = asRecord(root.Body);
-  const cube = lastCube(body.Cube);
-  const publishingDate = text(cube.date) ?? text(cube['@_date']) ?? text(header.PublishingDate);
-  const rates = asArray(cube.Rate).flatMap((node) => {
+  const root = asRecord(child(asRecord(parsed), 'DataSet'));
+  const header = asRecord(child(root, 'Header'));
+  const body = asRecord(child(root, 'Body'));
+  const cube = lastCube(child(body, 'Cube'));
+  const publishingDate = text(attribute(cube, 'date')) ?? text(child(header, 'PublishingDate'));
+  const rates = asArray(child(cube, 'Rate')).flatMap((node) => {
     const rate = readRate(node);
     return rate ? [rate] : [];
   });
@@ -126,11 +127,11 @@ function normalizeCurrency(currency: string | undefined): string | undefined {
 
 function readRate(node: unknown): BnrRate | null {
   const record = asRecord(node);
-  const currency = text(record['@_currency']);
+  const currency = text(attribute(record, 'currency'));
   if (!currency || !/^[A-Z]{3}$/.test(currency)) {
     return null;
   }
-  const multiplierValue = record['@_multiplier'];
+  const multiplierValue = attribute(record, 'multiplier');
   const multiplier = multiplierValue === undefined ? 1 : Number(multiplierValue);
   const raw = Number(record['#text']);
   if (!Number.isFinite(raw) || !Number.isFinite(multiplier) || multiplier <= 0 || raw <= 0) {
@@ -142,6 +143,36 @@ function readRate(node: unknown): BnrRate | null {
     multiplier,
     rate,
   });
+}
+
+function child(record: Record<string, unknown>, name: string): unknown {
+  if (name in record) {
+    return record[name];
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (localName(key) === name) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function attribute(record: Record<string, unknown>, name: string): unknown {
+  const prefixed = `@_${name}`;
+  if (prefixed in record) {
+    return record[prefixed];
+  }
+  for (const [key, value] of Object.entries(record)) {
+    if (key.startsWith('@_') && localName(key.slice(2)) === name) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function localName(name: string): string {
+  const colon = name.lastIndexOf(':');
+  return colon === -1 ? name : name.slice(colon + 1);
 }
 
 function lastCube(value: unknown): Record<string, unknown> {

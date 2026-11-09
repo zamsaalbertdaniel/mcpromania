@@ -20,7 +20,7 @@ export const testEnv: GatewayEnv = {
   SUPABASE_URL: 'https://example.supabase.co',
   SUPABASE_ANON_KEY: 'anon-test-key',
   ANAF_API_URL: 'https://api.anaf.ro/PlatitorTvaRest/api/v8/ws/tva',
-  BNR_XML_URL: 'https://www.bnr.ro/nbrfxrates.xml',
+  BNR_XML_URL: 'https://curs.bnr.ro/nbrfxrates.xml',
   RATE_LIMIT_PER_MINUTE: 60,
   AUTH_CACHE_TTL_SECONDS: 300,
   CIRCUIT_FAILURE_THRESHOLD: 5,
@@ -70,12 +70,14 @@ export function anafPayload(): unknown {
 }
 
 export const BNR_XML = `<?xml version="1.0" encoding="utf-8"?>
-<DataSet>
+<DataSet xmlns="https://www.bnr.ro/xsd" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://curs.bnr.ro/xsd/nbrfxrates.xsd">
   <Header>
     <Publisher>National Bank of Romania</Publisher>
     <PublishingDate>2026-11-09</PublishingDate>
+    <MessageType>DR</MessageType>
   </Header>
   <Body>
+    <Subject>Reference rates</Subject>
     <OrigCurrency>RON</OrigCurrency>
     <Cube date="2026-11-09">
       <Rate currency="EUR">4.9750</Rate>
