@@ -136,10 +136,11 @@ function readRate(node: unknown): BnrRate | null {
   if (!Number.isFinite(raw) || !Number.isFinite(multiplier) || multiplier <= 0 || raw <= 0) {
     return null;
   }
+  const rate = Number((raw / multiplier).toFixed(8));
   return BnrRateSchema.parse({
     currency,
     multiplier,
-    rate: raw / multiplier,
+    rate,
   });
 }
 

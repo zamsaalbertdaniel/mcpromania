@@ -94,7 +94,9 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   registerBnrRoute(app, { bnr, supabase: deps.supabase, now });
 
   app.use('/mcp', auth);
+  app.use('/mcp/*', auth);
   app.use('/mcp', rateLimit);
+  app.use('/mcp/*', rateLimit);
   registerMcpRoute(app, { anaf, bnr, supabase: deps.supabase, now });
 
   app.notFound((c) => {

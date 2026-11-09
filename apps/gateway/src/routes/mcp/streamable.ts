@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { toFetchResponse, toReqRes } from 'fetch-to-node';
-import type { Hono } from 'hono';
+import type { Handler, Hono } from 'hono';
 
 import type { AppEnv } from '../../app-env.js';
 import { AppError } from '../../core/errors.js';
@@ -20,7 +20,7 @@ export function registerMcpRoute(
     now: () => number;
   }
 ): void {
-  app.all('/mcp', async (c) => {
+  const handleMcp: Handler<AppEnv> = async (c) => {
     const auth = c.get('auth');
     if (!auth) {
       throw new AppError(401, 'UNAUTHORIZED', 'Cheie API lipsă');
@@ -59,5 +59,8 @@ export function registerMcpRoute(
       await transport.close().catch(() => undefined);
       await server.close().catch(() => undefined);
     }
-  });
+  };
+
+  app.all('/mcp', handleMcp);
+  app.all('/mcp/*', handleMcp);
 }

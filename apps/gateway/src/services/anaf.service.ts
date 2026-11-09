@@ -41,6 +41,15 @@ export function createAnafService(deps: AnafServiceDeps): AnafService {
   };
 }
 
+function formatRomanianDate(timestamp: number): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Bucharest',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(timestamp));
+}
+
 async function fetchAnafCompany(cui: string, deps: AnafServiceDeps): Promise<AnafCompany> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), deps.timeoutMs);
@@ -54,7 +63,7 @@ async function fetchAnafCompany(cui: string, deps: AnafServiceDeps): Promise<Ana
       body: JSON.stringify([
         {
           cui: Number(cui),
-          data: new Date(deps.now()).toISOString().slice(0, 10),
+          data: formatRomanianDate(deps.now()),
         },
       ]),
       signal: controller.signal,

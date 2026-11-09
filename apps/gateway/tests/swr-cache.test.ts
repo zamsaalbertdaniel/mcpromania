@@ -137,4 +137,36 @@ describe('SWR cache', () => {
     expect(staleBody.meta.stale).toBe(true);
     expect(staleBody.meta.source).toBe('cache_stale');
   });
+
+  it('coalesces multiple concurrent in-flight requests into a single upstream call', async () => {
+    const clock = { value: Date.parse('2026-11-09T00:00:00.000Z') };
+    const now = () => clock.value;
+    const redis = new MemoryRedis(now);
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return jsonResponse(anafPayload());
+    };
+    const circuit = new CircuitBreaker({ threshold: 5, cooldownMs: 30_000, now });
+    const anaf = createAnafService({
+      cache: new SwrCache(redis, now),
+      circuit,
+      fetchImpl,
+      url: testEnv.ANAF_API_URL,
+      timeoutMs: 3000,
+      now,
+    });
+
+    const [hit1, hit2, hit3] = await Promise.all([
+      anaf.lookup(VALID_CUI),
+      anaf.lookup(VALID_CUI),
+      anaf.lookup(VALID_CUI),
+    ]);
+
+    expect(calls).toBe(1);
+    expect(hit1.data.denumire).toBe('TEST SRL');
+    expect(hit2.data.denumire).toBe('TEST SRL');
+    expect(hit3.data.denumire).toBe('TEST SRL');
+  });
 });

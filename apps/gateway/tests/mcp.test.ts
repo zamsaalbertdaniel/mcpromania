@@ -55,6 +55,27 @@ describe('POST /mcp', () => {
     expect(payload.meta.source).toBe('bnr_xml');
     expect(payload.meta.stale).toBe(false);
   });
+
+  it('handles requests to /mcp/ with a trailing slash', async () => {
+    const app = createTestApp({
+      supabase: createSupabaseMock().port,
+      fetchImpl: async () => textResponse(BNR_XML),
+    });
+
+    const response = await app.request('/mcp/', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      }),
+    });
+    expect(response.status).toBe(200);
+    const body = await readMcp(response);
+    expect(body.result).toBeDefined();
+  });
 });
 
 function postMcp(

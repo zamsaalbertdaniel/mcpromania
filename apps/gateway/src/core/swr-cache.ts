@@ -31,6 +31,8 @@ export type SwrLoadOptions<T> = {
 };
 
 export class SwrCache {
+  private readonly inflight = new Map<string, Promise<unknown>>();
+
   constructor(
     private readonly redis: RedisPort,
     private readonly now: () => number = Date.now
@@ -56,7 +58,18 @@ export class SwrCache {
     }
 
     try {
-      const data = await options.circuit.execute(options.load);
+      let inflightPromise = this.inflight.get(options.key) as Promise<T> | undefined;
+      if (!inflightPromise) {
+        inflightPromise = (async () => {
+          try {
+            return await options.circuit.execute(options.load);
+          } finally {
+            this.inflight.delete(options.key);
+          }
+        })();
+        this.inflight.set(options.key, inflightPromise);
+      }
+      const data = await inflightPromise;
       const stored = await this.write(options.key, data, options.freshTtlSec, options.staleTtlSec);
       return {
         data: stored.data,
