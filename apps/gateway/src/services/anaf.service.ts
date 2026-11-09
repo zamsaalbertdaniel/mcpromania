@@ -7,6 +7,20 @@ import type { SwrCache, SwrHit } from '../core/swr-cache.js';
 const FRESH_TTL_SEC = 86_400;
 const STALE_TTL_SEC = 604_800;
 
+export const DEFAULT_ANAF_API_URL = 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva';
+
+export function resolveAnafUrl(url: string | undefined): string {
+  if (
+    !url ||
+    url.includes('/v8/ws/tva') ||
+    url.includes('/api/v8') ||
+    url.includes('api.anaf.ro')
+  ) {
+    return DEFAULT_ANAF_API_URL;
+  }
+  return url;
+}
+
 export type AnafServiceDeps = {
   cache: SwrCache;
   circuit: CircuitBreaker;
@@ -53,8 +67,9 @@ function formatRomanianDate(timestamp: number): string {
 async function fetchAnafCompany(cui: string, deps: AnafServiceDeps): Promise<AnafCompany> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), deps.timeoutMs);
+  const endpoint = resolveAnafUrl(deps.url);
   try {
-    const response = await deps.fetchImpl(deps.url, {
+    const response = await deps.fetchImpl(endpoint, {
       method: 'POST',
       headers: {
         Accept: 'application/json',

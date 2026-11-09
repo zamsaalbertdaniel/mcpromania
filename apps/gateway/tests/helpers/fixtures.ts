@@ -19,7 +19,7 @@ export const testEnv: GatewayEnv = {
   REDIS_URL: 'redis://127.0.0.1:6379',
   SUPABASE_URL: 'https://example.supabase.co',
   SUPABASE_ANON_KEY: 'anon-test-key',
-  ANAF_API_URL: 'https://api.anaf.ro/PlatitorTvaRest/api/v8/ws/tva',
+  ANAF_API_URL: 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva',
   BNR_XML_URL: 'https://curs.bnr.ro/nbrfxrates.xml',
   RATE_LIMIT_PER_MINUTE: 60,
   AUTH_CACHE_TTL_SECONDS: 300,

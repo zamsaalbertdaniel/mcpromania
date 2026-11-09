@@ -5,7 +5,7 @@ export const EnvSchema = z.object({
   REDIS_URL: z.string().min(1).default('redis://127.0.0.1:6379'),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
-  ANAF_API_URL: z.string().url().default('https://api.anaf.ro/PlatitorTvaRest/api/v8/ws/tva'),
+  ANAF_API_URL: z.string().url().default('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva'),
   BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
