@@ -90,7 +90,13 @@ export class SwrCache {
   }
 
   private async read<T>(key: string, schema: z.ZodType<T>): Promise<CacheEnvelope<T> | null> {
-    const raw = await this.redis.get(key);
+    let raw: string | null = null;
+    try {
+      raw = await this.redis.get(key);
+    } catch (error) {
+      console.warn(`SWR cache read failed for key ${key}:`, error);
+      return null;
+    }
     if (!raw) {
       return null;
     }
@@ -131,7 +137,11 @@ export class SwrCache {
       fresh_until: now + freshTtlSec * 1000,
       stale_until: now + staleTtlSec * 1000,
     };
-    await this.redis.set(key, JSON.stringify(envelope), 'EX', staleTtlSec);
+    try {
+      await this.redis.set(key, JSON.stringify(envelope), 'EX', staleTtlSec);
+    } catch (error) {
+      console.warn(`SWR cache write failed for key ${key}:`, error);
+    }
     return envelope;
   }
 }

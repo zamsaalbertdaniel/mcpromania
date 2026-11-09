@@ -37,4 +37,76 @@ describe('rate limiter', () => {
     expect(body.ok).toBe(false);
     expect(body.error.code).toBe('RATE_LIMITED');
   });
+
+  it('does not count rejected requests towards rate limit so window is not extended', async () => {
+    const clock = { value: Date.parse('2026-11-09T00:00:00.000Z') };
+    const supabase = createSupabaseMock();
+    const app = createTestApp({
+      now: () => clock.value,
+      supabase: supabase.port,
+      fetchImpl: async () => jsonResponse(anafPayload()),
+    });
+
+    for (let attempt = 1; attempt <= 60; attempt += 1) {
+      const response = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+        headers: { authorization: `Bearer ${TEST_API_KEY}` },
+      });
+      expect(response.status).toBe(200);
+    }
+
+    // 61st and 62nd are rejected
+    clock.value += 10_000;
+    const blocked1 = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+      headers: { authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    expect(blocked1.status).toBe(429);
+
+    clock.value += 10_000;
+    const blocked2 = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+      headers: { authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    expect(blocked2.status).toBe(429);
+
+    // Advance clock past the initial 60s window (now 61s from start)
+    // The first 60 requests expired. If blocked1 and blocked2 were recorded, they would still count!
+    clock.value = Date.parse('2026-11-09T00:01:01.000Z');
+    const allowedAfterWindow = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+      headers: { authorization: `Bearer ${TEST_API_KEY}` },
+    });
+    expect(allowedAfterWindow.status).toBe(200);
+  });
+
+  it('fails open when redis encounters an error', async () => {
+    const failingRedis = {
+      status: 'ready',
+      get: async () => {
+        throw new Error('Redis connection refused');
+      },
+      set: async () => {
+        throw new Error('Redis connection refused');
+      },
+      ping: async () => {
+        throw new Error('Redis connection refused');
+      },
+      quit: async () => {},
+      multi: () => {
+        throw new Error('Redis connection refused');
+      },
+    };
+
+    const supabase = createSupabaseMock();
+    const app = createTestApp({
+      redis: failingRedis,
+      supabase: supabase.port,
+      fetchImpl: async () => jsonResponse(anafPayload()),
+    });
+
+    const response = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+      headers: { authorization: `Bearer ${TEST_API_KEY}` },
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
+  });
 });

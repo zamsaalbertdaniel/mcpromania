@@ -36,7 +36,11 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
       throw new AppError(401, 'UNAUTHORIZED', 'Cheie API invalidă');
     }
     if (!cached) {
-      await deps.redis.set(cacheKey, JSON.stringify(auth), 'EX', deps.env.AUTH_CACHE_TTL_SECONDS);
+      try {
+        await deps.redis.set(cacheKey, JSON.stringify(auth), 'EX', deps.env.AUTH_CACHE_TTL_SECONDS);
+      } catch (error) {
+        console.warn('Auth cache write failed, continuing without cache:', error);
+      }
     }
     c.set('auth', auth);
     await next();
@@ -55,14 +59,15 @@ function readToken(authorization: string | undefined, apiKey: string | undefined
 }
 
 async function readCache(redis: RedisPort, key: string): Promise<AuthContext | null> {
-  const raw = await redis.get(key);
-  if (!raw) {
-    return null;
-  }
   try {
+    const raw = await redis.get(key);
+    if (!raw) {
+      return null;
+    }
     const parsed = CachedAuthSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
-  } catch {
+  } catch (error) {
+    console.warn('Auth cache read failed, falling back to Supabase:', error);
     return null;
   }
 }

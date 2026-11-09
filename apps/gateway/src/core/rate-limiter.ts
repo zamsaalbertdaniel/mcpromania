@@ -27,24 +27,47 @@ export class RedisRateLimiter {
     const now = this.now();
     const key = `mcpr:rl:${identity}`;
     const windowStart = now - this.options.windowMs;
-    const member = `${now}:${Math.random().toString(16).slice(2)}`;
-    const pipeline = this.redis.multi();
-    pipeline.zremrangebyscore(key, 0, windowStart);
-    pipeline.zadd(key, now, member);
-    pipeline.zcard(key);
-    pipeline.pexpire(key, this.options.windowMs);
-    pipeline.zrange(key, 0, 0, 'WITHSCORES');
-    const results = await pipeline.exec();
-    const count = Number(results?.[2]?.[1] ?? 0);
-    const range = results?.[4]?.[1];
-    const oldest = Array.isArray(range) && range.length >= 2 ? Number(range[1]) : now;
-    const reset = Math.ceil((oldest + this.options.windowMs) / 1000);
-    const allowed = count <= this.options.limit;
-    return {
-      allowed,
-      limit: this.options.limit,
-      remaining: Math.max(0, this.options.limit - count),
-      reset,
-    };
+
+    try {
+      const checkPipeline = this.redis.multi();
+      checkPipeline.zremrangebyscore(key, 0, windowStart);
+      checkPipeline.zcard(key);
+      checkPipeline.zrange(key, 0, 0, 'WITHSCORES');
+      const results = await checkPipeline.exec();
+      const count = Number(results?.[1]?.[1] ?? 0);
+      const range = results?.[2]?.[1];
+      const oldest = Array.isArray(range) && range.length >= 2 ? Number(range[1]) : now;
+      const reset = Math.ceil((oldest + this.options.windowMs) / 1000);
+
+      if (count >= this.options.limit) {
+        return {
+          allowed: false,
+          limit: this.options.limit,
+          remaining: 0,
+          reset,
+        };
+      }
+
+      const member = `${now}:${Math.random().toString(16).slice(2)}`;
+      const addPipeline = this.redis.multi();
+      addPipeline.zadd(key, now, member);
+      addPipeline.pexpire(key, this.options.windowMs);
+      await addPipeline.exec();
+
+      return {
+        allowed: true,
+        limit: this.options.limit,
+        remaining: Math.max(0, this.options.limit - (count + 1)),
+        reset: count === 0 ? Math.ceil((now + this.options.windowMs) / 1000) : reset,
+      };
+    } catch (error) {
+      console.warn('Rate limiter Redis error, failing open:', error);
+      return {
+        allowed: true,
+        limit: this.options.limit,
+        remaining: this.options.limit,
+        reset: Math.ceil((now + this.options.windowMs) / 1000),
+      };
+    }
   }
 }

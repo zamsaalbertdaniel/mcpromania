@@ -25,6 +25,10 @@ export function createRedis(url: string): RedisPort {
     lazyConnect: false,
   });
 
+  client.on('error', (err) => {
+    console.error('Redis connection error:', err instanceof Error ? err.message : String(err));
+  });
+
   return {
     get status() {
       return client.status;
