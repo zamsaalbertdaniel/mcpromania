@@ -8,5 +8,5 @@ export default defineConfig({
   sourcemap: true,
   splitting: false,
   dts: false,
-  skipNodeModulesBundle: true,
+  noExternal: [/.*/],
 });
