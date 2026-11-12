@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile
 # Copy source code and build internal packages + standalone gateway bundle
 COPY packages/types ./packages/types
 COPY apps/gateway ./apps/gateway
-RUN pnpm --filter @mcpromania/gateway build
+RUN pnpm --filter @mcpromania/types build && pnpm --filter @mcpromania/gateway build
 
 # Minimal runtime image (no node_modules or pnpm needed in production)
 FROM node:22-alpine AS runner
