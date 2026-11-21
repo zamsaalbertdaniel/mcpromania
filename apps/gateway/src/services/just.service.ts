@@ -61,6 +61,7 @@ export function createJustService(deps: JustServiceDeps): JustService {
               headers: {
                 'Content-Type': 'text/xml; charset=utf-8',
                 SOAPAction: '"portalquery.just.ro/CautareDosare"',
+                'User-Agent': 'Mozilla/5.0 (compatible; MCPRomania/1.0; +https://mcpromania.ro)',
               },
               body: soapBody,
               signal: controller.signal,

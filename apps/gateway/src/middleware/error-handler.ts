@@ -55,7 +55,7 @@ export const errorHandler: ErrorHandler<AppEnv> = (error, c) => {
     );
   }
 
-  console.error(error instanceof Error ? error.message : 'unexpected error');
+  console.error('Unhandled server error:', error);
   return c.json(
     buildError({
       code: 'INTERNAL',

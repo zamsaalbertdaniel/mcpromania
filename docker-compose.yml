@@ -5,6 +5,9 @@ services:
       dockerfile: apps/gateway/Dockerfile
     ports:
       - '127.0.0.1:4000:4000'
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     env_file:
       - .env
     restart: unless-stopped
@@ -16,6 +19,9 @@ services:
       - uptime-kuma-data:/app/data
     ports:
       - '127.0.0.1:3001:3001'
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     restart: unless-stopped
 
 volumes:
