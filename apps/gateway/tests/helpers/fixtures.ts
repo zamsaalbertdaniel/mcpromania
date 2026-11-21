@@ -21,11 +21,13 @@ export const testEnv: GatewayEnv = {
   SUPABASE_ANON_KEY: 'anon-test-key',
   ANAF_API_URL: 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva',
   BNR_XML_URL: 'https://curs.bnr.ro/nbrfxrates.xml',
+  JUST_API_URL: 'http://portalquery.just.ro/Query.asmx',
   RATE_LIMIT_PER_MINUTE: 60,
   AUTH_CACHE_TTL_SECONDS: 300,
   CIRCUIT_FAILURE_THRESHOLD: 5,
   CIRCUIT_COOLDOWN_MS: 30_000,
   REQUEST_TIMEOUT_MS: 3000,
+  JUST_REQUEST_TIMEOUT_MS: 5000,
 };
 
 export function anafPayload(): unknown {

@@ -16,9 +16,11 @@ import { registerMcpRoute } from './routes/mcp/streamable.js';
 import { registerAnafRoute } from './routes/rest/anaf.route.js';
 import { registerBnrRoute } from './routes/rest/bnr.route.js';
 import { registerIbanRoute } from './routes/rest/iban.route.js';
+import { registerJustRoute } from './routes/rest/just.route.js';
 import { createAnafService } from './services/anaf.service.js';
 import { createBnrService } from './services/bnr.service.js';
 import { createIbanService } from './services/iban.service.js';
+import { createJustService } from './services/just.service.js';
 
 export type { AppEnv } from './app-env.js';
 
@@ -31,6 +33,7 @@ export type GatewayDeps = {
   circuits?: {
     anaf: CircuitBreaker;
     bnr: CircuitBreaker;
+    just?: CircuitBreaker;
   };
 };
 
@@ -46,6 +49,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     });
   const bnrCircuit =
     deps.circuits?.bnr ??
+    new CircuitBreaker({
+      threshold: deps.env.CIRCUIT_FAILURE_THRESHOLD,
+      cooldownMs: deps.env.CIRCUIT_COOLDOWN_MS,
+      now,
+    });
+  const justCircuit =
+    deps.circuits?.just ??
     new CircuitBreaker({
       threshold: deps.env.CIRCUIT_FAILURE_THRESHOLD,
       cooldownMs: deps.env.CIRCUIT_COOLDOWN_MS,
@@ -69,6 +79,14 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     now,
   });
   const iban = createIbanService();
+  const just = createJustService({
+    cache,
+    circuit: justCircuit,
+    fetchImpl,
+    url: deps.env.JUST_API_URL,
+    timeoutMs: deps.env.JUST_REQUEST_TIMEOUT_MS,
+    now,
+  });
   const limiter = new RedisRateLimiter(deps.redis, {
     limit: deps.env.RATE_LIMIT_PER_MINUTE,
     windowMs: 60_000,
@@ -89,19 +107,20 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     await next();
   });
 
-  registerHealthRoute(app, { redis: deps.redis, anafCircuit, bnrCircuit });
+  registerHealthRoute(app, { redis: deps.redis, anafCircuit, bnrCircuit, justCircuit });
 
   app.use('/api/v1/*', auth);
   app.use('/api/v1/*', rateLimit);
   registerAnafRoute(app, { anaf, supabase: deps.supabase, now });
   registerBnrRoute(app, { bnr, supabase: deps.supabase, now });
   registerIbanRoute(app, { iban, supabase: deps.supabase, now });
+  registerJustRoute(app, { just, supabase: deps.supabase, now });
 
   app.use('/mcp', auth);
   app.use('/mcp/*', auth);
   app.use('/mcp', rateLimit);
   app.use('/mcp/*', rateLimit);
-  registerMcpRoute(app, { anaf, bnr, iban, supabase: deps.supabase, now });
+  registerMcpRoute(app, { anaf, bnr, iban, just, supabase: deps.supabase, now });
 
   app.notFound((c) => {
     return c.json(

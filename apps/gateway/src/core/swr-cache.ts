@@ -24,7 +24,7 @@ export type SwrLoadOptions<T> = {
   key: string;
   freshTtlSec: number;
   staleTtlSec: number;
-  liveSource: Extract<ResponseSource, 'anaf_api_v8' | 'bnr_xml'>;
+  liveSource: Extract<ResponseSource, 'anaf_api_v8' | 'bnr_xml' | 'portal_just'>;
   circuit: CircuitBreaker;
   schema: z.ZodType<T>;
   load: () => Promise<T>;

@@ -6,7 +6,12 @@ import type { RedisPort } from '../core/redis.js';
 
 export function registerHealthRoute(
   app: Hono<AppEnv>,
-  deps: { redis: RedisPort; anafCircuit: CircuitBreaker; bnrCircuit: CircuitBreaker }
+  deps: {
+    redis: RedisPort;
+    anafCircuit: CircuitBreaker;
+    bnrCircuit: CircuitBreaker;
+    justCircuit?: CircuitBreaker;
+  }
 ): void {
   app.get('/health', async (c) => {
     let redis: 'up' | 'down' = 'down';
@@ -15,11 +20,18 @@ export function registerHealthRoute(
     } catch {
       redis = 'down';
     }
-    const circuits = {
+    const circuits: Record<string, string> = {
       anaf: deps.anafCircuit.getState(),
       bnr: deps.bnrCircuit.getState(),
     };
-    const degraded = redis === 'down' || circuits.anaf === 'OPEN' || circuits.bnr === 'OPEN';
+    if (deps.justCircuit) {
+      circuits.just = deps.justCircuit.getState();
+    }
+    const degraded =
+      redis === 'down' ||
+      circuits.anaf === 'OPEN' ||
+      circuits.bnr === 'OPEN' ||
+      circuits.just === 'OPEN';
     return c.json({
       ok: true,
       status: degraded ? 'degraded' : 'ok',

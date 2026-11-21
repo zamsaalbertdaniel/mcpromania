@@ -139,10 +139,61 @@ export const IbanValidationResultSchema = z.object({
 });
 export type IbanValidationResult = z.infer<typeof IbanValidationResultSchema>;
 
+export const JustParteSchema = z.object({
+  nume: z.string(),
+  calitateParte: z.string(),
+});
+export type JustParte = z.infer<typeof JustParteSchema>;
+
+export const JustSedintaSchema = z.object({
+  complet: z.string().nullable(),
+  data: z.string().nullable(),
+  ora: z.string().nullable(),
+  solutie: z.string().nullable(),
+  solutieSumar: z.string().nullable(),
+  dataPronuntare: z.string().nullable(),
+  documentSedinta: z.string().nullable(),
+  numarDocument: z.string().nullable(),
+  dataDocument: z.string().nullable(),
+});
+export type JustSedinta = z.infer<typeof JustSedintaSchema>;
+
+export const JustCaleAtacSchema = z.object({
+  dataDeclarare: z.string().nullable(),
+  parteDeclaratoare: z.string().nullable(),
+  tipCaleAtac: z.string().nullable(),
+});
+export type JustCaleAtac = z.infer<typeof JustCaleAtacSchema>;
+
+export const JustDosarSchema = z.object({
+  numar: z.string(),
+  numarVechi: z.string().nullable(),
+  data: z.string().nullable(),
+  institutie: z.string(),
+  departament: z.string().nullable(),
+  categorieCaz: z.string().nullable(),
+  stadiuProcesual: z.string().nullable(),
+  obiect: z.string().nullable(),
+  dataModificare: z.string().nullable(),
+  parti: z.array(JustParteSchema),
+  sedinte: z.array(JustSedintaSchema),
+  caiAtac: z.array(JustCaleAtacSchema),
+});
+export type JustDosar = z.infer<typeof JustDosarSchema>;
+
+export const JustSearchResultSchema = z.object({
+  query: z.string(),
+  queryType: z.enum(['numarDosar', 'numeParte']),
+  totalCases: z.number().int().nonnegative(),
+  cases: z.array(JustDosarSchema),
+});
+export type JustSearchResult = z.infer<typeof JustSearchResultSchema>;
+
 export const ResponseSourceSchema = z.enum([
   'anaf_api_v8',
   'bnr_xml',
   'iban_validator',
+  'portal_just',
   'cache_fresh',
   'cache_stale',
 ]);

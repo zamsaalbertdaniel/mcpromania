@@ -9,9 +9,11 @@ import type { SupabasePort } from '../../core/supabase.js';
 import type { AnafService } from '../../services/anaf.service.js';
 import type { BnrService } from '../../services/bnr.service.js';
 import type { IbanService } from '../../services/iban.service.js';
+import type { JustService } from '../../services/just.service.js';
 import { registerAnafTool } from '../../tools/anaf.tool.js';
 import { registerBnrTool } from '../../tools/bnr.tool.js';
 import { registerIbanTool } from '../../tools/iban.tool.js';
+import { registerJustTool } from '../../tools/just.tool.js';
 
 export function registerMcpRoute(
   app: Hono<AppEnv>,
@@ -19,6 +21,7 @@ export function registerMcpRoute(
     anaf: AnafService;
     bnr: BnrService;
     iban: IbanService;
+    just: JustService;
     supabase: SupabasePort;
     now: () => number;
   }
@@ -34,6 +37,7 @@ export function registerMcpRoute(
       anaf: deps.anaf,
       bnr: deps.bnr,
       iban: deps.iban,
+      just: deps.just,
       supabase: deps.supabase,
       auth,
       requestId: c.get('requestId'),
@@ -43,6 +47,7 @@ export function registerMcpRoute(
     registerAnafTool(server, toolDeps);
     registerBnrTool(server, toolDeps);
     registerIbanTool(server, toolDeps);
+    registerJustTool(server, toolDeps);
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

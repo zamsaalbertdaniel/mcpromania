@@ -7,11 +7,13 @@ export const EnvSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   ANAF_API_URL: z.string().url().default('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva'),
   BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
+  JUST_API_URL: z.string().url().default('http://portalquery.just.ro/Query.asmx'),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   CIRCUIT_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
   CIRCUIT_COOLDOWN_MS: z.coerce.number().int().positive().default(30_000),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(3000).default(3000),
+  JUST_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
 });
 
 export type GatewayEnv = z.infer<typeof EnvSchema>;

@@ -3,6 +3,7 @@ import {
   ApiErrorSchema,
   BnrRatesSchema,
   IbanValidationResultSchema,
+  JustSearchResultSchema,
   createApiResponseSchema,
   type AnafCompany,
   type ApiError,
@@ -10,6 +11,7 @@ import {
   type BnrRates,
   type CircuitStatus,
   type IbanValidationResult,
+  type JustSearchResult,
   type ResponseSource,
 } from '@mcpromania/types';
 
@@ -71,6 +73,27 @@ export function buildIbanSuccess(
   return createApiResponseSchema(IbanValidationResultSchema).parse(
     payload
   ) as ApiResponse<IbanValidationResult>;
+}
+
+export function buildJustSuccess(
+  hit: SwrHit<JustSearchResult>,
+  clock: RequestClock
+): ApiResponse<JustSearchResult> {
+  const payload = {
+    ok: true as const,
+    data: hit.data,
+    meta: {
+      source: hit.source,
+      cached_at: hit.cached_at,
+      stale: hit.stale,
+      execution_time_ms: Math.max(0, clock.now - clock.startedAt),
+      circuit_status: hit.circuit_status,
+      request_id: clock.requestId,
+    },
+  };
+  return createApiResponseSchema(JustSearchResultSchema).parse(
+    payload
+  ) as ApiResponse<JustSearchResult>;
 }
 
 export function buildError(input: {

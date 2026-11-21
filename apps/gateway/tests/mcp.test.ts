@@ -13,7 +13,27 @@ describe('POST /mcp', () => {
   it('lists both tools and calls the BNR exchange rate tool', async () => {
     const app = createTestApp({
       supabase: createSupabaseMock().port,
-      fetchImpl: async () => textResponse(BNR_XML),
+      fetchImpl: async (url) => {
+        if (String(url).includes('just.ro')) {
+          return textResponse(`<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <CautareDosareResponse xmlns="portalquery.just.ro">
+      <CautareDosareResult>
+        <Dosar>
+          <numar>100/1/2024</numar>
+          <institutie>CurteadeApelBUCURESTI</institutie>
+          <parti><DosarParte><nume>TEST SRL</nume><calitateParte>Reclamant</calitateParte></DosarParte></parti>
+          <sedinte />
+          <caiAtac />
+        </Dosar>
+      </CautareDosareResult>
+    </CautareDosareResponse>
+  </soap:Body>
+</soap:Envelope>`);
+        }
+        return textResponse(BNR_XML);
+      },
     });
 
     const listed = await postMcp(app, {
@@ -28,7 +48,12 @@ describe('POST /mcp', () => {
       (tool) => tool.name
     );
     expect(tools).toEqual(
-      expect.arrayContaining(['anaf_lookup', 'bnr_exchange_rate', 'iban_validate'])
+      expect.arrayContaining([
+        'anaf_lookup',
+        'bnr_exchange_rate',
+        'iban_validate',
+        'portal_just_search',
+      ])
     );
 
     const ibanCall = await postMcp(app, {
@@ -78,12 +103,55 @@ describe('POST /mcp', () => {
     expect(payload.data.rates).toEqual([{ currency: 'HUF', rate: 0.0125, multiplier: 100 }]);
     expect(payload.meta.source).toBe('bnr_xml');
     expect(payload.meta.stale).toBe(false);
+
+    const justCall = await postMcp(app, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: {
+        name: 'portal_just_search',
+        arguments: { query: '100/1/2024' },
+      },
+    });
+    expect(justCall.status).toBe(200);
+    const justBody = await readMcp(justCall);
+    const justText =
+      (justBody.result as { content: Array<{ text: string }> }).content[0]?.text ?? '';
+    const justPayload = JSON.parse(justText) as {
+      ok: boolean;
+      data: { totalCases: number; cases: Array<{ numar: string }> };
+      meta: { source: string };
+    };
+    expect(justPayload.ok).toBe(true);
+    expect(justPayload.data.totalCases).toBe(1);
+    expect(justPayload.data.cases[0]?.numar).toBe('100/1/2024');
+    expect(justPayload.meta.source).toBe('portal_just');
   });
 
   it('handles requests to /mcp/ with a trailing slash', async () => {
     const app = createTestApp({
       supabase: createSupabaseMock().port,
-      fetchImpl: async () => textResponse(BNR_XML),
+      fetchImpl: async (url) => {
+        if (String(url).includes('just.ro')) {
+          return textResponse(`<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <CautareDosareResponse xmlns="portalquery.just.ro">
+      <CautareDosareResult>
+        <Dosar>
+          <numar>100/1/2024</numar>
+          <institutie>CurteadeApelBUCURESTI</institutie>
+          <parti><DosarParte><nume>TEST SRL</nume><calitateParte>Reclamant</calitateParte></DosarParte></parti>
+          <sedinte />
+          <caiAtac />
+        </Dosar>
+      </CautareDosareResult>
+    </CautareDosareResponse>
+  </soap:Body>
+</soap:Envelope>`);
+        }
+        return textResponse(BNR_XML);
+      },
     });
 
     const response = await app.request('/mcp/', {
