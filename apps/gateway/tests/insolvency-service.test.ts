@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { CircuitBreaker } from '../src/core/circuit-breaker.js';
 import { SwrCache } from '../src/core/swr-cache.js';
@@ -15,6 +15,11 @@ describe('InsolvencyService - Logic and Classification', () => {
   const redis = new MemoryRedis(() => clock.value);
   const cache = new SwrCache(redis, () => clock.value);
   const circuit = new CircuitBreaker({ now: () => clock.value });
+
+  beforeEach(() => {
+    redis.clear();
+    clock.value += 1_000_000_000;
+  });
 
   const mockAnafService = {
     lookup: async () => ({
@@ -69,6 +74,75 @@ describe('InsolvencyService - Logic and Classification', () => {
     expect(report.data.riskLevel).toBe('LOW');
     expect(report.data.totalCases).toBe(0);
     expect(report.data.summary).toContain('nu figurează cu dosare de insolvență');
+  });
+
+  it('correctly classifies a solvent company as IN_BONIS even when it appears as CREDITOR in third-party bankruptcies', async () => {
+    const mockJustService = {
+      search: async () => ({
+        data: {
+          query: 'DANTE INTERNATIONAL SA',
+          queryType: 'numeParte',
+          totalCases: 2,
+          cases: [
+            {
+              numar: '340/1285/2026',
+              institutie: 'TribunalulComercialCLUJ',
+              departament: 'Falimente',
+              categorieCaz: 'Faliment',
+              stadiuProcesual: 'Fond',
+              obiect: 'deschiderea procedurii la cererea debitorului',
+              parti: [
+                { nume: 'FOOD OS TECH SA', calitateParte: 'Debitor' },
+                { nume: 'HODOS BUSINESS RECOVERY SPRL', calitateParte: 'Lichidator' },
+                { nume: 'DANTE INTERNATIONAL SA', calitateParte: 'Creditor' },
+                { nume: 'VODAFONE ROMANIA SA', calitateParte: 'Creditor' },
+              ],
+              sedinte: [
+                {
+                  complet: 'F1',
+                  data: '2026-05-10',
+                  solutie: 'Deschide procedura falimentului',
+                  solutieSumar:
+                    'Deschide procedura simplificată a falimentului împotriva debitorului FOOD OS TECH SA.',
+                },
+              ],
+              caiAtac: [],
+            },
+            {
+              numar: '19/122/2018/a7',
+              institutie: 'TribunalulGIURGIU',
+              departament: 'SINDIC',
+              categorieCaz: 'Faliment',
+              stadiuProcesual: 'Fond',
+              obiect: 'procedura insolvenţei – contestaţie',
+              parti: [
+                { nume: 'GIURGIU SERVICII LOCALE SA', calitateParte: 'Debitor' },
+                { nume: 'DANTE INTERNAŢIONAL SA', calitateParte: 'Intimat Creditor' },
+              ],
+              sedinte: [],
+              caiAtac: [],
+            },
+          ],
+        },
+      }),
+    } as unknown as JustService;
+
+    const insolvency = createInsolvencyService({
+      anaf: mockAnafService,
+      just: mockJustService,
+      cache,
+      circuit,
+      now: () => clock.value,
+    });
+
+    const report = await insolvency.checkInsolvency({ cui: '14399840' });
+    expect(report.data.status).toBe('IN_BONIS');
+    expect(report.data.hasInsolvencyRisk).toBe(false);
+    expect(report.data.riskLevel).toBe('LOW');
+    expect(report.data.totalCases).toBe(0);
+    expect(report.data.cases).toHaveLength(0);
+    expect(report.data.summary).toContain('IN BONIS');
+    expect(report.data.summary).toContain('parte creditoare');
   });
 
   it('detects and classifies an opened insolvency procedure (INSOLVENTA_DESCHISA)', async () => {

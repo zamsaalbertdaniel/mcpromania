@@ -78,9 +78,12 @@ export function createInsolvencyService(deps: InsolvencyServiceDeps): Insolvency
           const justHit = await deps.just.search({ query: companyName });
           const allCases = justHit.data.cases;
 
-          const insolvencyCases = filterAndClassifyInsolvencyCases(allCases);
+          const { debtorCases, creditorCasesCount } = filterAndClassifyInsolvencyCases(
+            allCases,
+            companyName
+          );
 
-          return buildInsolvencyReport(cui, companyName, insolvencyCases);
+          return buildInsolvencyReport(cui, companyName, debtorCases, creditorCasesCount);
         },
       });
     },
@@ -124,25 +127,145 @@ export function isInsolvencyCase(dosar: JustDosar): boolean {
   return INSOLVENCY_KEYWORDS.some((kw) => obj.includes(kw) || cat.includes(kw));
 }
 
-export function filterAndClassifyInsolvencyCases(cases: JustDosar[]): InsolvencyCase[] {
-  return cases.filter(isInsolvencyCase).map((c) => {
-    const status = determineCaseStatus(c);
-    const judicialAdministrator = extractJudicialAdministrator(c);
-    const lastHearing = extractLastHearing(c);
+export type InsolvencyAnalysis = {
+  debtorCases: InsolvencyCase[];
+  creditorCasesCount: number;
+};
 
-    return {
-      caseNumber: c.numar,
-      court: c.institutie,
-      department: c.departament,
-      filingDate: c.data,
-      status,
-      object: c.obiect,
-      stage: c.stadiuProcesual,
-      judicialAdministrator,
-      parties: c.parti.map((p) => ({ name: p.nume, role: p.calitateParte })),
-      lastHearing,
-    };
-  });
+function normalizeString(str: string): string {
+  return str
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const STOP_WORDS = new Set([
+  'SC',
+  'SA',
+  'SRL',
+  'SCS',
+  'SCA',
+  'PFA',
+  'II',
+  'IF',
+  'SPRL',
+  'SNC',
+  'SOCIETATEA',
+  'COMERCIALA',
+  'NATIONALA',
+  'ROMANIA',
+  'FILIALA',
+  'SUCURSALA',
+]);
+
+export function extractCoreTokens(name: string): string[] {
+  const norm = normalizeString(name);
+  return norm.split(' ').filter((token) => token.length > 1 && !STOP_WORDS.has(token));
+}
+
+export function isTargetMatch(partyName: string, targetName: string): boolean {
+  if (!targetName || !partyName) return false;
+  const partyTokens = extractCoreTokens(partyName);
+  const targetTokens = extractCoreTokens(targetName);
+  if (partyTokens.length === 0 || targetTokens.length === 0) return false;
+  return targetTokens.every((tok) => partyTokens.includes(tok));
+}
+
+export function isDebtorRole(role: string): boolean {
+  const r = normalizeString(role).toLowerCase();
+  if (r.includes('creditor') || r.includes('creditoare') || r.includes('oponent')) {
+    return false;
+  }
+  return (
+    r.includes('debitor') || r.includes('debitoare') || r.includes('falit') || r.includes('falita')
+  );
+}
+
+export function isCreditorRole(role: string): boolean {
+  const r = normalizeString(role).toLowerCase();
+  return (
+    r.includes('creditor') ||
+    r.includes('creditoare') ||
+    r.includes('petent') ||
+    r.includes('reclamant') ||
+    r.includes('oponent')
+  );
+}
+
+export function isCompanyDebtorInCase(
+  c: JustDosar,
+  targetName?: string
+): { isDebtor: boolean; isCreditor: boolean } {
+  if (!targetName) {
+    return { isDebtor: true, isCreditor: false };
+  }
+
+  const allDebtors = c.parti.filter((p) => isDebtorRole(p.calitateParte));
+  const matchedParties = c.parti.filter((p) => isTargetMatch(p.nume, targetName));
+
+  // 1. Is target explicitly matched as debtor?
+  const targetIsExplicitDebtor =
+    allDebtors.some((d) => isTargetMatch(d.nume, targetName)) ||
+    matchedParties.some((p) => isDebtorRole(p.calitateParte));
+
+  if (targetIsExplicitDebtor) {
+    return { isDebtor: true, isCreditor: false };
+  }
+
+  // 2. If there are other explicit debtors in this case, target is NOT the debtor
+  if (allDebtors.length > 0) {
+    const isCreditor =
+      matchedParties.some((p) => isCreditorRole(p.calitateParte)) || matchedParties.length > 0;
+    return { isDebtor: false, isCreditor };
+  }
+
+  // 3. If no parties have explicit debtor role, check if target has creditor role
+  const isTargetCreditor = matchedParties.some((p) => isCreditorRole(p.calitateParte));
+  if (isTargetCreditor) {
+    return { isDebtor: false, isCreditor: true };
+  }
+
+  // 4. Fallback: if target matches party and no other party is debtor
+  return { isDebtor: matchedParties.length > 0, isCreditor: false };
+}
+
+export function filterAndClassifyInsolvencyCases(
+  cases: JustDosar[],
+  targetName?: string
+): InsolvencyAnalysis {
+  const insolvencyOnly = cases.filter(isInsolvencyCase);
+  const debtorCases: InsolvencyCase[] = [];
+  let creditorCasesCount = 0;
+
+  for (const c of insolvencyOnly) {
+    const { isDebtor, isCreditor } = isCompanyDebtorInCase(c, targetName);
+
+    if (isDebtor) {
+      const status = determineCaseStatus(c);
+      const judicialAdministrator = extractJudicialAdministrator(c);
+      const lastHearing = extractLastHearing(c);
+
+      debtorCases.push({
+        caseNumber: c.numar,
+        court: c.institutie,
+        department: c.departament,
+        filingDate: c.data,
+        status,
+        object: c.obiect,
+        stage: c.stadiuProcesual,
+        judicialAdministrator,
+        parties: c.parti.map((p) => ({ name: p.nume, role: p.calitateParte })),
+        lastHearing,
+      });
+    } else if (isCreditor) {
+      creditorCasesCount++;
+    }
+  }
+
+  return { debtorCases, creditorCasesCount };
 }
 
 function determineCaseStatus(c: JustDosar): InsolvencyStatus {
@@ -232,17 +355,22 @@ function extractLastHearing(c: JustDosar) {
 export function buildInsolvencyReport(
   cui: string | null,
   name: string,
-  cases: InsolvencyCase[]
+  debtorCases: InsolvencyCase[],
+  creditorCasesCount: number = 0
 ): InsolvencyReport {
-  if (cases.length === 0) {
+  if (debtorCases.length === 0) {
+    const summary =
+      creditorCasesCount > 0
+        ? `Compania este IN BONIS. Nu figurează ca debitor în proceduri de insolvență sau faliment (notă: figurează ca parte creditoare în ${creditorCasesCount} dosare de recuperare creanțe ale unor debitori terți).`
+        : 'Compania nu figurează cu dosare de insolvență, faliment sau concordat preventiv în evidențele instanțelor judecătorești (IN BONIS).';
+
     return {
       cui,
       name,
       status: 'IN_BONIS',
       hasInsolvencyRisk: false,
       riskLevel: 'LOW',
-      summary:
-        'Compania nu figurează cu dosare de insolvență, faliment sau concordat preventiv în evidențele instanțelor judecătorești.',
+      summary,
       totalCases: 0,
       cases: [],
     };
@@ -258,7 +386,7 @@ export function buildInsolvencyReport(
     IN_BONIS: 0,
   };
 
-  const worstCase = cases.reduce((prev, curr) =>
+  const worstCase = debtorCases.reduce((prev, curr) =>
     severityRank[curr.status] >= severityRank[prev.status] ? curr : prev
   );
 
@@ -278,19 +406,19 @@ export function buildInsolvencyReport(
   let summary = '';
   switch (status) {
     case 'FALIMENT':
-      summary = `Atenție: Compania se află în procedură de FALIMENT conform dosarului ${worstCase.caseNumber} la ${worstCase.court}.`;
+      summary = `Atenție: Compania figurează ca debitor în procedură de FALIMENT conform dosarului ${worstCase.caseNumber} la ${worstCase.court}.`;
       break;
     case 'INSOLVENTA_DESCHISA':
-      summary = `Atenție: Compania se află în procedură de INSOLVENȚĂ DESCHISĂ conform dosarului ${worstCase.caseNumber} la ${worstCase.court}.`;
+      summary = `Atenție: Compania figurează ca debitor în procedură de INSOLVENȚĂ DESCHISĂ conform dosarului ${worstCase.caseNumber} la ${worstCase.court}.`;
       break;
     case 'REORGANIZARE_JUDICIARA':
-      summary = `Compania se află în REORGANIZARE JUDICIARĂ conform dosarului ${worstCase.caseNumber}.`;
+      summary = `Compania se află în REORGANIZARE JUDICIARĂ conform dosarului ${worstCase.caseNumber} la ${worstCase.court}.`;
       break;
     case 'CERERE_INREGISTRATA':
-      summary = `Există o cerere de deschidere a procedurii de insolvență în curs de judecată (dosar ${worstCase.caseNumber} la ${worstCase.court}).`;
+      summary = `Există o cerere de deschidere a procedurii de insolvență împotriva companiei (dosar ${worstCase.caseNumber} la ${worstCase.court}).`;
       break;
     case 'INCHISA':
-      summary = `Compania a avut procedură de insolvență în trecut, dar dosarul figurează ca ÎNCHIS (${worstCase.caseNumber}).`;
+      summary = `Compania a fost debitor într-o procedură de insolvență finalizată/închisă (dosar ${worstCase.caseNumber}).`;
       break;
     default:
       summary = 'Nu există riscuri de insolvență active.';
@@ -303,7 +431,7 @@ export function buildInsolvencyReport(
     hasInsolvencyRisk: riskLevel !== 'LOW',
     riskLevel,
     summary,
-    totalCases: cases.length,
-    cases,
+    totalCases: debtorCases.length,
+    cases: debtorCases.slice(0, 20),
   };
 }

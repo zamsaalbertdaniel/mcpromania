@@ -38,6 +38,12 @@ export class MemoryRedis implements RedisPort {
     this.status = 'end';
   }
 
+  clear(): void {
+    this.strings.clear();
+    this.zsets.clear();
+    this.zsetExpiry.clear();
+  }
+
   multi(): RedisPipeline {
     const operations: Array<() => unknown> = [];
     const pipeline: RedisPipeline = {
