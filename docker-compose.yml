@@ -1,16 +1,24 @@
+x-gateway-common: &gateway-common
+  build:
+    context: .
+    dockerfile: apps/gateway/Dockerfile
+  dns:
+    - 1.1.1.1
+    - 8.8.8.8
+  env_file:
+    - .env
+  restart: unless-stopped
+
 services:
-  gateway:
-    build:
-      context: .
-      dockerfile: apps/gateway/Dockerfile
+  gateway-1:
+    <<: *gateway-common
     ports:
       - '127.0.0.1:4000:4000'
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    env_file:
-      - .env
-    restart: unless-stopped
+
+  gateway-2:
+    <<: *gateway-common
+    ports:
+      - '127.0.0.1:4001:4000'
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
