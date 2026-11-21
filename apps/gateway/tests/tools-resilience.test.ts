@@ -75,7 +75,13 @@ describe('Resilience: Rate Limiting across all tools', () => {
     expect(resOnrcComp.headers.get('x-ratelimit-limit')).toBe('60');
     expect(Number(resOnrcComp.headers.get('x-ratelimit-remaining'))).toBe(54);
 
-    // 7. MCP endpoint
+    // 7. Tool 7: Insolvency & BPI Check
+    const resInsolv = await app.request(`/api/v1/insolvency/check/${VALID_CUI}`, { headers });
+    expect(resInsolv.status).toBe(200);
+    expect(resInsolv.headers.get('x-ratelimit-limit')).toBe('60');
+    expect(Number(resInsolv.headers.get('x-ratelimit-remaining'))).toBe(53);
+
+    // 8. MCP endpoint
     const resMcp = await app.request('/mcp', {
       method: 'POST',
       headers: {
@@ -91,7 +97,7 @@ describe('Resilience: Rate Limiting across all tools', () => {
     });
     expect(resMcp.status).toBe(200);
     expect(resMcp.headers.get('x-ratelimit-limit')).toBe('60');
-    expect(Number(resMcp.headers.get('x-ratelimit-remaining'))).toBe(53);
+    expect(Number(resMcp.headers.get('x-ratelimit-remaining'))).toBe(52);
   });
 
   it('rejects all endpoints with HTTP 429 when quota is exceeded', async () => {

@@ -55,6 +55,7 @@ describe('POST /mcp', () => {
         'portal_just_search',
         'onrc_validate_regcom',
         'onrc_company_lookup',
+        'insolvency_risk_check',
       ])
     );
 
@@ -151,6 +152,26 @@ describe('POST /mcp', () => {
     expect(onrcPayload.data.isValid).toBe(true);
     expect(onrcPayload.data.county.name).toBe('București');
     expect(onrcPayload.meta.source).toBe('onrc_validator');
+
+    const insolvCall = await postMcp(app, {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: {
+        name: 'insolvency_risk_check',
+        arguments: { name: 'TEST SRL' },
+      },
+    });
+    expect(insolvCall.status).toBe(200);
+    const insolvBody = await readMcp(insolvCall);
+    const insolvContent = (insolvBody.result as { content: Array<{ type: string; text: string }> })
+      .content[0]!.text;
+    const insolvPayload = JSON.parse(insolvContent) as {
+      ok: boolean;
+      data: { status: string; hasInsolvencyRisk: boolean };
+    };
+    expect(insolvPayload.ok).toBe(true);
+    expect(insolvPayload.data.status).toBe('IN_BONIS');
   });
 
   it('handles requests to /mcp/ with a trailing slash', async () => {

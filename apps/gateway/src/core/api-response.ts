@@ -3,6 +3,7 @@ import {
   ApiErrorSchema,
   BnrRatesSchema,
   IbanValidationResultSchema,
+  InsolvencyReportSchema,
   JustSearchResultSchema,
   OnrcCompanyProfileSchema,
   OnrcRegistrationSchema,
@@ -13,6 +14,7 @@ import {
   type BnrRates,
   type CircuitStatus,
   type IbanValidationResult,
+  type InsolvencyReport,
   type JustSearchResult,
   type OnrcCompanyProfile,
   type OnrcRegistration,
@@ -98,6 +100,27 @@ export function buildJustSuccess(
   return createApiResponseSchema(JustSearchResultSchema).parse(
     payload
   ) as ApiResponse<JustSearchResult>;
+}
+
+export function buildInsolvencySuccess(
+  hit: SwrHit<InsolvencyReport>,
+  clock: RequestClock
+): ApiResponse<InsolvencyReport> {
+  const payload = {
+    ok: true as const,
+    data: hit.data,
+    meta: {
+      source: hit.source,
+      cached_at: hit.cached_at,
+      stale: hit.stale,
+      execution_time_ms: Math.max(0, clock.now - clock.startedAt),
+      circuit_status: hit.circuit_status,
+      request_id: clock.requestId,
+    },
+  };
+  return createApiResponseSchema(InsolvencyReportSchema).parse(
+    payload
+  ) as ApiResponse<InsolvencyReport>;
 }
 
 export function buildOnrcValidationSuccess(

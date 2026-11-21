@@ -9,11 +9,13 @@ import type { SupabasePort } from '../../core/supabase.js';
 import type { AnafService } from '../../services/anaf.service.js';
 import type { BnrService } from '../../services/bnr.service.js';
 import type { IbanService } from '../../services/iban.service.js';
+import type { InsolvencyService } from '../../services/insolvency.service.js';
 import type { JustService } from '../../services/just.service.js';
 import type { OnrcService } from '../../services/onrc.service.js';
 import { registerAnafTool } from '../../tools/anaf.tool.js';
 import { registerBnrTool } from '../../tools/bnr.tool.js';
 import { registerIbanTool } from '../../tools/iban.tool.js';
+import { registerInsolvencyTool } from '../../tools/insolvency.tool.js';
 import { registerJustTool } from '../../tools/just.tool.js';
 import { registerOnrcTools } from '../../tools/onrc.tool.js';
 
@@ -23,6 +25,7 @@ export function registerMcpRoute(
     anaf: AnafService;
     bnr: BnrService;
     iban: IbanService;
+    insolvency: InsolvencyService;
     just: JustService;
     onrc: OnrcService;
     supabase: SupabasePort;
@@ -40,6 +43,7 @@ export function registerMcpRoute(
       anaf: deps.anaf,
       bnr: deps.bnr,
       iban: deps.iban,
+      insolvency: deps.insolvency,
       just: deps.just,
       onrc: deps.onrc,
       supabase: deps.supabase,
@@ -53,6 +57,7 @@ export function registerMcpRoute(
     registerIbanTool(server, toolDeps);
     registerJustTool(server, toolDeps);
     registerOnrcTools(server, toolDeps);
+    registerInsolvencyTool(server, toolDeps);
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

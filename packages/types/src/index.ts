@@ -234,6 +234,58 @@ export const OnrcCompanyProfileSchema = z.object({
 });
 export type OnrcCompanyProfile = z.infer<typeof OnrcCompanyProfileSchema>;
 
+export const InsolvencyStatusSchema = z.enum([
+  'IN_BONIS',
+  'CERERE_INREGISTRATA',
+  'INSOLVENTA_DESCHISA',
+  'REORGANIZARE_JUDICIARA',
+  'FALIMENT',
+  'INCHISA',
+]);
+export type InsolvencyStatus = z.infer<typeof InsolvencyStatusSchema>;
+
+export const InsolvencyRiskLevelSchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+export type InsolvencyRiskLevel = z.infer<typeof InsolvencyRiskLevelSchema>;
+
+export const InsolvencyPartySchema = z.object({
+  name: z.string(),
+  role: z.string(),
+});
+export type InsolvencyParty = z.infer<typeof InsolvencyPartySchema>;
+
+export const InsolvencyHearingSchema = z.object({
+  date: z.string().nullable(),
+  solution: z.string().nullable(),
+  summary: z.string().nullable(),
+});
+export type InsolvencyHearing = z.infer<typeof InsolvencyHearingSchema>;
+
+export const InsolvencyCaseSchema = z.object({
+  caseNumber: z.string(),
+  court: z.string(),
+  department: z.string().nullable(),
+  filingDate: z.string().nullable(),
+  status: InsolvencyStatusSchema,
+  object: z.string().nullable(),
+  stage: z.string().nullable(),
+  judicialAdministrator: z.string().nullable(),
+  parties: z.array(InsolvencyPartySchema),
+  lastHearing: InsolvencyHearingSchema.nullable(),
+});
+export type InsolvencyCase = z.infer<typeof InsolvencyCaseSchema>;
+
+export const InsolvencyReportSchema = z.object({
+  cui: z.string().nullable(),
+  name: z.string(),
+  status: InsolvencyStatusSchema,
+  hasInsolvencyRisk: z.boolean(),
+  riskLevel: InsolvencyRiskLevelSchema,
+  summary: z.string(),
+  totalCases: z.number().int().nonnegative(),
+  cases: z.array(InsolvencyCaseSchema),
+});
+export type InsolvencyReport = z.infer<typeof InsolvencyReportSchema>;
+
 export const ResponseSourceSchema = z.enum([
   'anaf_api_v8',
   'bnr_xml',
@@ -241,6 +293,7 @@ export const ResponseSourceSchema = z.enum([
   'portal_just',
   'onrc_validator',
   'onrc_company',
+  'portal_just_insolvency',
   'cache_fresh',
   'cache_stale',
 ]);

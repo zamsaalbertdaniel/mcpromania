@@ -16,11 +16,13 @@ import { registerMcpRoute } from './routes/mcp/streamable.js';
 import { registerAnafRoute } from './routes/rest/anaf.route.js';
 import { registerBnrRoute } from './routes/rest/bnr.route.js';
 import { registerIbanRoute } from './routes/rest/iban.route.js';
+import { registerInsolvencyRoute } from './routes/rest/insolvency.route.js';
 import { registerJustRoute } from './routes/rest/just.route.js';
 import { registerOnrcRoute } from './routes/rest/onrc.route.js';
 import { createAnafService } from './services/anaf.service.js';
 import { createBnrService } from './services/bnr.service.js';
 import { createIbanService } from './services/iban.service.js';
+import { createInsolvencyService } from './services/insolvency.service.js';
 import { createJustService } from './services/just.service.js';
 import { createOnrcService } from './services/onrc.service.js';
 
@@ -90,6 +92,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     now,
   });
   const onrc = createOnrcService({ anaf });
+  const insolvency = createInsolvencyService({
+    anaf,
+    just,
+    cache,
+    circuit: justCircuit,
+    now,
+  });
   const limiter = new RedisRateLimiter(deps.redis, {
     limit: deps.env.RATE_LIMIT_PER_MINUTE,
     windowMs: 60_000,
@@ -119,10 +128,11 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   registerIbanRoute(app, { iban, supabase: deps.supabase, now });
   registerJustRoute(app, { just, supabase: deps.supabase, now });
   registerOnrcRoute(app, { onrc, supabase: deps.supabase, now });
+  registerInsolvencyRoute(app, { insolvency, supabase: deps.supabase, now });
 
   app.use('/mcp/*', auth);
   app.use('/mcp/*', rateLimit);
-  registerMcpRoute(app, { anaf, bnr, iban, just, onrc, supabase: deps.supabase, now });
+  registerMcpRoute(app, { anaf, bnr, iban, insolvency, just, onrc, supabase: deps.supabase, now });
 
   app.notFound((c) => {
     return c.json(
