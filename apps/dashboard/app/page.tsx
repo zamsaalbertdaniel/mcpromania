@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 const DATA_STREAMS = [
@@ -68,6 +69,12 @@ export default function Home() {
 
       <h1 className="brand">MCP ROMANIA</h1>
       <p className="coming-soon">ÎN CURÂND</p>
+
+      <footer className="footer-links">
+        <Link href="/politica-confidentialitate">Politica de Confidențialitate</Link>
+        <span>•</span>
+        <Link href="/termeni-conditii">Termeni și Condiții</Link>
+      </footer>
     </div>
   );
 }
