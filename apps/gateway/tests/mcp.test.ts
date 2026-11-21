@@ -53,6 +53,8 @@ describe('POST /mcp', () => {
         'bnr_exchange_rate',
         'iban_validate',
         'portal_just_search',
+        'onrc_validate_regcom',
+        'onrc_company_lookup',
       ])
     );
 
@@ -126,6 +128,29 @@ describe('POST /mcp', () => {
     expect(justPayload.data.totalCases).toBe(1);
     expect(justPayload.data.cases[0]?.numar).toBe('100/1/2024');
     expect(justPayload.meta.source).toBe('portal_just');
+
+    const onrcCall = await postMcp(app, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'tools/call',
+      params: {
+        name: 'onrc_validate_regcom',
+        arguments: { regNumber: 'J40/1234/2024' },
+      },
+    });
+    expect(onrcCall.status).toBe(200);
+    const onrcBody = await readMcp(onrcCall);
+    const onrcText =
+      (onrcBody.result as { content: Array<{ text: string }> }).content[0]?.text ?? '';
+    const onrcPayload = JSON.parse(onrcText) as {
+      ok: boolean;
+      data: { isValid: boolean; county: { name: string } };
+      meta: { source: string };
+    };
+    expect(onrcPayload.ok).toBe(true);
+    expect(onrcPayload.data.isValid).toBe(true);
+    expect(onrcPayload.data.county.name).toBe('București');
+    expect(onrcPayload.meta.source).toBe('onrc_validator');
   });
 
   it('handles requests to /mcp/ with a trailing slash', async () => {

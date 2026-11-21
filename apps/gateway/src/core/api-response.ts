@@ -4,6 +4,8 @@ import {
   BnrRatesSchema,
   IbanValidationResultSchema,
   JustSearchResultSchema,
+  OnrcCompanyProfileSchema,
+  OnrcRegistrationSchema,
   createApiResponseSchema,
   type AnafCompany,
   type ApiError,
@@ -12,6 +14,8 @@ import {
   type CircuitStatus,
   type IbanValidationResult,
   type JustSearchResult,
+  type OnrcCompanyProfile,
+  type OnrcRegistration,
   type ResponseSource,
 } from '@mcpromania/types';
 
@@ -94,6 +98,54 @@ export function buildJustSuccess(
   return createApiResponseSchema(JustSearchResultSchema).parse(
     payload
   ) as ApiResponse<JustSearchResult>;
+}
+
+export function buildOnrcValidationSuccess(
+  data: OnrcRegistration,
+  clock: RequestClock
+): ApiResponse<OnrcRegistration> {
+  const payload = {
+    ok: true as const,
+    data,
+    meta: {
+      source: 'onrc_validator' as const,
+      cached_at: null,
+      stale: false,
+      execution_time_ms: Math.max(0, clock.now - clock.startedAt),
+      circuit_status: 'CLOSED' as const,
+      request_id: clock.requestId,
+    },
+  };
+  return createApiResponseSchema(OnrcRegistrationSchema).parse(
+    payload
+  ) as ApiResponse<OnrcRegistration>;
+}
+
+export function buildOnrcCompanySuccess(
+  data: OnrcCompanyProfile,
+  clock: RequestClock,
+  opts?: {
+    source?: ResponseSource;
+    cachedAt?: string | null;
+    stale?: boolean;
+    circuitStatus?: CircuitStatus;
+  }
+): ApiResponse<OnrcCompanyProfile> {
+  const payload = {
+    ok: true as const,
+    data,
+    meta: {
+      source: opts?.source ?? ('onrc_company' as const),
+      cached_at: opts?.cachedAt ?? null,
+      stale: opts?.stale ?? false,
+      execution_time_ms: Math.max(0, clock.now - clock.startedAt),
+      circuit_status: opts?.circuitStatus ?? ('CLOSED' as const),
+      request_id: clock.requestId,
+    },
+  };
+  return createApiResponseSchema(OnrcCompanyProfileSchema).parse(
+    payload
+  ) as ApiResponse<OnrcCompanyProfile>;
 }
 
 export function buildError(input: {

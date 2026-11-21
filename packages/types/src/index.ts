@@ -189,11 +189,58 @@ export const JustSearchResultSchema = z.object({
 });
 export type JustSearchResult = z.infer<typeof JustSearchResultSchema>;
 
+export const OnrcEntityTypeSchema = z.object({
+  code: z.enum(['J', 'F', 'C']),
+  name: z.string(),
+  category: z.enum(['juridica', 'fizica', 'cooperativa']),
+});
+export type OnrcEntityType = z.infer<typeof OnrcEntityTypeSchema>;
+
+export const OnrcCountySchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  region: z.string(),
+  orctOffice: z.string(),
+  competentCourt: z.string(),
+  courtCodeJust: z.string(),
+});
+export type OnrcCounty = z.infer<typeof OnrcCountySchema>;
+
+export const OnrcRegistrationSchema = z.object({
+  raw: z.string(),
+  formatted: z.string().nullable(),
+  isValid: z.boolean(),
+  entityType: OnrcEntityTypeSchema.nullable(),
+  county: OnrcCountySchema.nullable(),
+  serialNumber: z.number().int().positive().nullable(),
+  year: z.number().int().positive().nullable(),
+  validationError: z.string().nullable(),
+});
+export type OnrcRegistration = z.infer<typeof OnrcRegistrationSchema>;
+
+export const OnrcCompanyProfileSchema = z.object({
+  cui: z.string(),
+  name: z.string(),
+  address: z.string(),
+  onrc: OnrcRegistrationSchema,
+  status: z.object({
+    isActive: z.boolean(),
+    isInactiveFiscal: z.boolean(),
+    isVatPayer: z.boolean(),
+    vatSplit: z.boolean(),
+  }),
+  registrationDate: z.string().nullable(),
+  ageYears: z.number().int().nonnegative().nullable(),
+});
+export type OnrcCompanyProfile = z.infer<typeof OnrcCompanyProfileSchema>;
+
 export const ResponseSourceSchema = z.enum([
   'anaf_api_v8',
   'bnr_xml',
   'iban_validator',
   'portal_just',
+  'onrc_validator',
+  'onrc_company',
   'cache_fresh',
   'cache_stale',
 ]);
