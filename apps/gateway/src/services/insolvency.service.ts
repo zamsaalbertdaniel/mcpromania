@@ -110,17 +110,19 @@ const INSOLVENCY_KEYWORDS = [
 export function isInsolvencyCase(dosar: JustDosar): boolean {
   const cat = (dosar.categorieCaz || '').toLowerCase();
   const obj = (dosar.obiect || '').toLowerCase();
-  const dep = (dosar.departament || '').toLowerCase();
 
-  if (cat.includes('faliment') || cat.includes('insolven')) {
-    return true;
+  // Exclude non-insolvency litigation categories explicitly
+  if (
+    cat.includes('penal') ||
+    cat.includes('munca') ||
+    cat.includes('minori') ||
+    cat.includes('familie') ||
+    cat.includes('contencios')
+  ) {
+    return false;
   }
 
-  if (
-    dep.includes('faliment') ||
-    dep.includes('secţia a vii-a') ||
-    dep.includes('sectia a vii-a')
-  ) {
+  if (cat.includes('faliment') || cat.includes('insolven')) {
     return true;
   }
 
@@ -206,6 +208,11 @@ export function isCompanyDebtorInCase(
   const allDebtors = c.parti.filter((p) => isDebtorRole(p.calitateParte));
   const matchedParties = c.parti.filter((p) => isTargetMatch(p.nume, targetName));
 
+  // If the target company does not match any party in this case, it is neither
+  if (matchedParties.length === 0) {
+    return { isDebtor: false, isCreditor: false };
+  }
+
   // 1. Is target explicitly matched as debtor?
   const targetIsExplicitDebtor =
     allDebtors.some((d) => isTargetMatch(d.nume, targetName)) ||
@@ -215,21 +222,9 @@ export function isCompanyDebtorInCase(
     return { isDebtor: true, isCreditor: false };
   }
 
-  // 2. If there are other explicit debtors in this case, target is NOT the debtor
-  if (allDebtors.length > 0) {
-    const isCreditor =
-      matchedParties.some((p) => isCreditorRole(p.calitateParte)) || matchedParties.length > 0;
-    return { isDebtor: false, isCreditor };
-  }
-
-  // 3. If no parties have explicit debtor role, check if target has creditor role
-  const isTargetCreditor = matchedParties.some((p) => isCreditorRole(p.calitateParte));
-  if (isTargetCreditor) {
-    return { isDebtor: false, isCreditor: true };
-  }
-
-  // 4. Fallback: if target matches party and no other party is debtor
-  return { isDebtor: matchedParties.length > 0, isCreditor: false };
+  // 2. In any other scenario (target is Creditor, Intimat, Intervenient, Apelant etc.),
+  // target is NOT the debtor! It is an external claimant / creditor.
+  return { isDebtor: false, isCreditor: true };
 }
 
 export function filterAndClassifyInsolvencyCases(
