@@ -2,12 +2,14 @@ import {
   AnafCompanySchema,
   ApiErrorSchema,
   BnrRatesSchema,
+  IbanValidationResultSchema,
   createApiResponseSchema,
   type AnafCompany,
   type ApiError,
   type ApiResponse,
   type BnrRates,
   type CircuitStatus,
+  type IbanValidationResult,
   type ResponseSource,
 } from '@mcpromania/types';
 
@@ -48,6 +50,27 @@ export function buildAnafSuccess(
 
 export function buildBnrSuccess(hit: SwrHit<BnrRates>, clock: RequestClock): ApiResponse<BnrRates> {
   return buildSuccess(BnrRatesSchema, hit, clock);
+}
+
+export function buildIbanSuccess(
+  data: IbanValidationResult,
+  clock: RequestClock
+): ApiResponse<IbanValidationResult> {
+  const payload = {
+    ok: true as const,
+    data,
+    meta: {
+      source: 'iban_validator' as const,
+      cached_at: null,
+      stale: false,
+      execution_time_ms: Math.max(0, clock.now - clock.startedAt),
+      circuit_status: 'CLOSED' as const,
+      request_id: clock.requestId,
+    },
+  };
+  return createApiResponseSchema(IbanValidationResultSchema).parse(
+    payload
+  ) as ApiResponse<IbanValidationResult>;
 }
 
 export function buildError(input: {

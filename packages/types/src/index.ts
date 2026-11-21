@@ -124,9 +124,25 @@ export const BnrRatesSchema = z.object({
 });
 export type BnrRates = z.infer<typeof BnrRatesSchema>;
 
+export const IbanValidationResultSchema = z.object({
+  iban: z.string(),
+  formatted: z.string(),
+  isValid: z.boolean(),
+  countryCode: z.string(),
+  isRomanian: z.boolean(),
+  bankCode: z.string().nullable(),
+  bankName: z.string().nullable(),
+  swiftBic: z.string().nullable(),
+  isTreasury: z.boolean(),
+  accountNumber: z.string().nullable(),
+  validationError: z.string().nullable(),
+});
+export type IbanValidationResult = z.infer<typeof IbanValidationResultSchema>;
+
 export const ResponseSourceSchema = z.enum([
   'anaf_api_v8',
   'bnr_xml',
+  'iban_validator',
   'cache_fresh',
   'cache_stale',
 ]);

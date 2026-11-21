@@ -27,7 +27,31 @@ describe('POST /mcp', () => {
     const tools = (listBody.result as { tools: Array<{ name: string }> }).tools.map(
       (tool) => tool.name
     );
-    expect(tools).toEqual(expect.arrayContaining(['anaf_lookup', 'bnr_exchange_rate']));
+    expect(tools).toEqual(
+      expect.arrayContaining(['anaf_lookup', 'bnr_exchange_rate', 'iban_validate'])
+    );
+
+    const ibanCall = await postMcp(app, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'tools/call',
+      params: {
+        name: 'iban_validate',
+        arguments: { iban: 'RO37BTRL0000000000000001' },
+      },
+    });
+    expect(ibanCall.status).toBe(200);
+    const ibanBody = await readMcp(ibanCall);
+    const ibanText =
+      (ibanBody.result as { content: Array<{ text: string }> }).content[0]?.text ?? '';
+    const ibanPayload = JSON.parse(ibanText) as {
+      ok: boolean;
+      data: { isValid: boolean; bankName: string; bankCode: string };
+    };
+    expect(ibanPayload.ok).toBe(true);
+    expect(ibanPayload.data.isValid).toBe(true);
+    expect(ibanPayload.data.bankCode).toBe('BTRL');
+    expect(ibanPayload.data.bankName).toBe('Banca Transilvania');
 
     const called = await postMcp(app, {
       jsonrpc: '2.0',

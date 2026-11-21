@@ -15,8 +15,10 @@ import { registerHealthRoute } from './routes/health.route.js';
 import { registerMcpRoute } from './routes/mcp/streamable.js';
 import { registerAnafRoute } from './routes/rest/anaf.route.js';
 import { registerBnrRoute } from './routes/rest/bnr.route.js';
+import { registerIbanRoute } from './routes/rest/iban.route.js';
 import { createAnafService } from './services/anaf.service.js';
 import { createBnrService } from './services/bnr.service.js';
+import { createIbanService } from './services/iban.service.js';
 
 export type { AppEnv } from './app-env.js';
 
@@ -66,6 +68,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     timeoutMs: deps.env.REQUEST_TIMEOUT_MS,
     now,
   });
+  const iban = createIbanService();
   const limiter = new RedisRateLimiter(deps.redis, {
     limit: deps.env.RATE_LIMIT_PER_MINUTE,
     windowMs: 60_000,
@@ -92,12 +95,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   app.use('/api/v1/*', rateLimit);
   registerAnafRoute(app, { anaf, supabase: deps.supabase, now });
   registerBnrRoute(app, { bnr, supabase: deps.supabase, now });
+  registerIbanRoute(app, { iban, supabase: deps.supabase, now });
 
   app.use('/mcp', auth);
   app.use('/mcp/*', auth);
   app.use('/mcp', rateLimit);
   app.use('/mcp/*', rateLimit);
-  registerMcpRoute(app, { anaf, bnr, supabase: deps.supabase, now });
+  registerMcpRoute(app, { anaf, bnr, iban, supabase: deps.supabase, now });
 
   app.notFound((c) => {
     return c.json(

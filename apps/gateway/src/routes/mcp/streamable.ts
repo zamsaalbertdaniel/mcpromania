@@ -8,14 +8,17 @@ import { AppError } from '../../core/errors.js';
 import type { SupabasePort } from '../../core/supabase.js';
 import type { AnafService } from '../../services/anaf.service.js';
 import type { BnrService } from '../../services/bnr.service.js';
+import type { IbanService } from '../../services/iban.service.js';
 import { registerAnafTool } from '../../tools/anaf.tool.js';
 import { registerBnrTool } from '../../tools/bnr.tool.js';
+import { registerIbanTool } from '../../tools/iban.tool.js';
 
 export function registerMcpRoute(
   app: Hono<AppEnv>,
   deps: {
     anaf: AnafService;
     bnr: BnrService;
+    iban: IbanService;
     supabase: SupabasePort;
     now: () => number;
   }
@@ -30,6 +33,7 @@ export function registerMcpRoute(
     const toolDeps = {
       anaf: deps.anaf,
       bnr: deps.bnr,
+      iban: deps.iban,
       supabase: deps.supabase,
       auth,
       requestId: c.get('requestId'),
@@ -38,6 +42,7 @@ export function registerMcpRoute(
     };
     registerAnafTool(server, toolDeps);
     registerBnrTool(server, toolDeps);
+    registerIbanTool(server, toolDeps);
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
