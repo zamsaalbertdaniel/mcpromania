@@ -357,12 +357,36 @@ export function createOnrcService(deps: { anaf: AnafService }): OnrcService {
         };
       }
 
-      // Format canonic: [JFC]\d{1,2}/\d{1,8}/\d{4}
-      const regComPattern = new RegExp(
-        '^([JFCjfc])\\s*([0-9]{1,2})\\s*[/.-]\\s*([0-9]{1,8})\\s*[/.-]\\s*([0-9]{4})$'
+      let letter: 'J' | 'F' | 'C' | null = null;
+      let countyCode: string | null = null;
+      let serialNumber: number | null = null;
+      let year: number | null = null;
+
+      // 1. Format canonic cu delimitatori: [JFC] jj / nnnn / aaaa (sau aa) (ex: J40/1234/2024, J12/4155/93)
+      const slashPattern = new RegExp(
+        '^([JFCjfc])\\s*([0-9]{1,2})[\\s/.-]+([0-9]{1,8})[\\s/.-]+([0-9]{2,4})$'
       );
-      const match = regComPattern.exec(raw);
-      if (!match) {
+      const slashMatch = slashPattern.exec(raw);
+
+      // 2. Format compact ANAF / EUID: [JFC] + AAAA + NNNNNN + JJ + [C] (ex: J2002000372404)
+      const compactEuidPattern = new RegExp('^([JFCjfc])([0-9]{4})([0-9]{6})([0-9]{2})([0-9]?)$');
+      const compactMatch = compactEuidPattern.exec(raw);
+
+      if (slashMatch) {
+        letter = slashMatch[1]!.toUpperCase() as 'J' | 'F' | 'C';
+        countyCode = slashMatch[2]!.padStart(2, '0');
+        serialNumber = Number.parseInt(slashMatch[3]!, 10);
+        let parsedYear = Number.parseInt(slashMatch[4]!, 10);
+        if (parsedYear < 100) {
+          parsedYear = parsedYear >= 90 ? 1900 + parsedYear : 2000 + parsedYear;
+        }
+        year = parsedYear;
+      } else if (compactMatch) {
+        letter = compactMatch[1]!.toUpperCase() as 'J' | 'F' | 'C';
+        year = Number.parseInt(compactMatch[2]!, 10);
+        serialNumber = Number.parseInt(compactMatch[3]!, 10);
+        countyCode = compactMatch[4]!;
+      } else {
         return {
           raw,
           formatted: null,
@@ -372,14 +396,11 @@ export function createOnrcService(deps: { anaf: AnafService }): OnrcService {
           serialNumber: null,
           year: null,
           validationError:
-            'Format invalid. Formatul oficial este [J|F|C]jj/nnnn/aaaa (ex: J40/1234/2024)',
+            'Format invalid. Formatele recunoscute sunt [J|F|C]jj/nnnn/aaaa (ex: J40/1234/2024) sau formatul compact ANAF (ex: J2002000372404)',
         };
       }
 
-      const letter = match[1]!.toUpperCase() as 'J' | 'F' | 'C';
       const entityType = ENTITY_TYPES[letter] ?? null;
-
-      const countyCode = match[2]!.padStart(2, '0');
       const countyData = ONRC_COUNTIES[countyCode];
 
       if (!countyData) {
@@ -404,10 +425,7 @@ export function createOnrcService(deps: { anaf: AnafService }): OnrcService {
         courtCodeJust: countyData.courtCodeJust,
       };
 
-      const serialNumber = Number.parseInt(match[3]!, 10);
-      const year = Number.parseInt(match[4]!, 10);
       const currentYear = new Date().getFullYear();
-
       if (year < 1990 || year > currentYear + 1) {
         return {
           raw,

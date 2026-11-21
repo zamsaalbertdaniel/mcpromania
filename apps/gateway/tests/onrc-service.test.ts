@@ -59,6 +59,29 @@ describe('OnrcService - validateRegCom', () => {
     expect(res.county?.name).toBe('Brașov');
   });
 
+  it('validates and parses ANAF compact EUID format (e.g. Dante International / eMAG: J2002000372404)', () => {
+    const res = onrc.validateRegCom('J2002000372404');
+    expect(res.isValid).toBe(true);
+    expect(res.formatted).toBe('J40/372/2002');
+    expect(res.entityType?.code).toBe('J');
+    expect(res.county?.code).toBe('40');
+    expect(res.county?.name).toBe('București');
+    expect(res.serialNumber).toBe(372);
+    expect(res.year).toBe(2002);
+  });
+
+  it('validates 2-digit year format (e.g. 93 -> 1993, 23 -> 2023)', () => {
+    const res93 = onrc.validateRegCom('J12/4155/93');
+    expect(res93.isValid).toBe(true);
+    expect(res93.formatted).toBe('J12/4155/1993');
+    expect(res93.year).toBe(1993);
+
+    const res23 = onrc.validateRegCom('J40/500/23');
+    expect(res23.isValid).toBe(true);
+    expect(res23.formatted).toBe('J40/500/2023');
+    expect(res23.year).toBe(2023);
+  });
+
   it('rejects unknown county codes', () => {
     const res = onrc.validateRegCom('J99/123/2024');
     expect(res.isValid).toBe(false);
@@ -134,6 +157,55 @@ describe('OnrcService - lookupCompany', () => {
     expect(profile.status.isActive).toBe(true);
     expect(profile.status.isVatPayer).toBe(true);
     expect(profile.ageYears).toBeGreaterThanOrEqual(30);
+  });
+
+  it('correctly parses compact ANAF EUID nrRegCom (e.g. eMAG Dante International)', async () => {
+    const mockAnafService = {
+      lookup: async () => ({
+        data: {
+          cui: '14399840',
+          denumire: 'DANTE INTERNATIONAL SA',
+          adresa: 'Bucuresti, Sector 2, Str. Gara Herastrau 6',
+          nrRegCom: 'J2002000372404',
+          telefon: null,
+          fax: null,
+          codPostal: '020334',
+          stareInregistrare: 'INREGISTRAT',
+          dataInregistrare: '2002-01-23',
+          codCaen: '4791',
+          iban: null,
+          statusRoEFactura: true,
+          organFiscalCompetent: 'DGAMC',
+          formaJuridica: 'SA',
+          formaProprietate: null,
+          formaOrganizare: null,
+          scpTva: true,
+          statusTvaIncasare: false,
+          statusInactiv: false,
+          statusSplitTva: false,
+          adresaSediuSocial: {
+            strada: 'Str. Gara Herastrau',
+            numar: '6',
+            localitate: 'Bucuresti',
+            judet: 'Bucuresti',
+            codPostal: '020334',
+            tara: 'Romania',
+            detalii: null,
+          },
+        },
+      }),
+    };
+
+    const onrc = createOnrcService({ anaf: mockAnafService as unknown as AnafService });
+    const profile = await onrc.lookupCompany('14399840');
+
+    expect(profile.onrc.isValid).toBe(true);
+    expect(profile.onrc.formatted).toBe('J40/372/2002');
+    expect(profile.onrc.county?.name).toBe('București');
+    expect(profile.onrc.county?.courtCodeJust).toBe('TribunalulBUCURESTI');
+    expect(profile.onrc.serialNumber).toBe(372);
+    expect(profile.onrc.year).toBe(2002);
+    expect(profile.ageYears).toBeGreaterThanOrEqual(22);
   });
 
   it('throws 400 BAD_REQUEST on invalid CUI', async () => {
