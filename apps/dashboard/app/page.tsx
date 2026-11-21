@@ -293,15 +293,16 @@ export default function Home() {
   > = {
     openai: {
       title: 'OpenAI ChatGPT (Custom GPT & Actions)',
-      subtitle: 'Importă schema OpenAPI direct în panoul GPT Builder de la OpenAI.',
+      subtitle:
+        'În GPT Builder > Configure > Actions, alege "Import from URL" și introdu https://api.mcpromania.ro/openapi.json',
       code: JSON.stringify(
         {
           openapi: '3.1.0',
           info: {
-            title: 'MCP Romania API',
+            title: 'MCP România – Enterprise Public Data API',
             version: '1.0.0',
             description:
-              'Instrumente AI pentru accesul la datele publice din România (ANAF, Justiție, Insolvență, BNR, ONRC)',
+              'Date oficiale în timp real: ANAF, BPI Insolvență, Portal Just, BNR, IBAN și ONRC',
           },
           servers: [{ url: 'https://api.mcpromania.ro' }],
           paths: {
@@ -314,21 +315,39 @@ export default function Home() {
                 ],
               },
             },
-            '/api/v1/anaf/lookup/{cui}': {
+            '/api/v1/anaf/cui/{cui}': {
               get: {
                 operationId: 'anaf_lookup',
-                summary: 'Interogare stare fiscală, TVA și e-Factura',
+                summary: 'Interogare stare fiscală, TVA și e-Factura ANAF',
                 parameters: [
                   { name: 'cui', in: 'path', required: true, schema: { type: 'string' } },
                 ],
               },
             },
-            '/api/v1/bnr/rate/{currency}': {
+            '/api/v1/just/cases': {
+              get: {
+                operationId: 'portal_just_search',
+                summary: 'Căutare dosare instanțe judecătorești portal.just.ro',
+                parameters: [
+                  { name: 'query', in: 'query', required: true, schema: { type: 'string' } },
+                ],
+              },
+            },
+            '/api/v1/bnr/exchange-rate': {
               get: {
                 operationId: 'bnr_exchange_rate',
-                summary: 'Curs valutar oficial BNR',
+                summary: 'Curs valutar oficial BNR (EUR, USD, GBP, CHF)',
                 parameters: [
-                  { name: 'currency', in: 'path', required: true, schema: { type: 'string' } },
+                  { name: 'currency', in: 'query', required: false, schema: { type: 'string' } },
+                ],
+              },
+            },
+            '/api/v1/iban/validate/{iban}': {
+              get: {
+                operationId: 'iban_validate',
+                summary: 'Validare algoritm cont IBAN (MOD97) și bancă',
+                parameters: [
+                  { name: 'iban', in: 'path', required: true, schema: { type: 'string' } },
                 ],
               },
             },

@@ -13,6 +13,7 @@ import { errorHandler } from './middleware/error-handler.js';
 import { createRateLimitMiddleware } from './middleware/rate-limit.js';
 import { registerHealthRoute } from './routes/health.route.js';
 import { registerMcpRoute } from './routes/mcp/streamable.js';
+import { registerOpenApiRoute } from './routes/openapi.route.js';
 import { registerAnafRoute } from './routes/rest/anaf.route.js';
 import { registerBnrRoute } from './routes/rest/bnr.route.js';
 import { registerIbanRoute } from './routes/rest/iban.route.js';
@@ -120,6 +121,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   });
 
   registerHealthRoute(app, { redis: deps.redis, anafCircuit, bnrCircuit, justCircuit });
+  registerOpenApiRoute(app);
 
   app.use('/api/v1/*', auth);
   app.use('/api/v1/*', rateLimit);
