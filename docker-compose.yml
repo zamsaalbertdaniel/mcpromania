@@ -1,0 +1,22 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/gateway/Dockerfile
+    ports:
+      - '127.0.0.1:4000:4000'
+    env_file:
+      - .env
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    volumes:
+      - uptime-kuma-data:/app/data
+    ports:
+      - '127.0.0.1:3001:3001'
+    restart: unless-stopped
+
+volumes:
+  uptime-kuma-data:
