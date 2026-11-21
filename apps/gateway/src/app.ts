@@ -120,9 +120,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   registerJustRoute(app, { just, supabase: deps.supabase, now });
   registerOnrcRoute(app, { onrc, supabase: deps.supabase, now });
 
-  app.use('/mcp', auth);
   app.use('/mcp/*', auth);
-  app.use('/mcp', rateLimit);
   app.use('/mcp/*', rateLimit);
   registerMcpRoute(app, { anaf, bnr, iban, just, onrc, supabase: deps.supabase, now });
 

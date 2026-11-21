@@ -69,7 +69,15 @@ export function registerMcpRoute(
         req.headers.host = host.length > 0 ? host : 'localhost';
       }
       await transport.handleRequest(req, res);
-      return await toFetchResponse(res);
+      const fetchResponse = await toFetchResponse(res);
+      if (c.res?.headers) {
+        c.res.headers.forEach((val, key) => {
+          if (!fetchResponse.headers.has(key)) {
+            fetchResponse.headers.set(key, val);
+          }
+        });
+      }
+      return fetchResponse;
     } finally {
       await transport.close().catch(() => undefined);
       await server.close().catch(() => undefined);
