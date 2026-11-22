@@ -515,14 +515,14 @@ def check_romanian_company(cui: str) -> dict:
           <a href="#integrari" className="nav-link">
             Integrare AI
           </a>
-          <a href="#arhitectura" className="nav-link">
-            Arhitectură
-          </a>
           <a href="#preturi" className="nav-link">
             Prețuri
           </a>
-          <a href="#unelte" className="nav-cta">
-            <span>Testează Sandbox</span>
+          <a href="#arhitectura" className="nav-link">
+            Arhitectură
+          </a>
+          <a href="#preturi" className="nav-cta">
+            <span>Intră pe lista de așteptare</span>
             <span>→</span>
           </a>
         </nav>
@@ -545,10 +545,10 @@ def check_romanian_company(cui: str) -> dict:
 
         <div className="hero-actions">
           <a href="#unelte" className="btn-primary">
-            Deschide Sandbox Interactiv
+            Testează Sandbox Interactiv
           </a>
-          <a href="#integrari" className="btn-secondary">
-            Ghid de Integrare AI
+          <a href="#preturi" className="btn-secondary">
+            Intră pe lista de așteptare
           </a>
         </div>
 
@@ -822,7 +822,88 @@ def check_romanian_company(cui: str) -> dict:
         </div>
       </section>
 
-      {/* Enterprise Architecture Features */}
+      {/* Pricing / Developer Tiers (Immediate Value & Waitlist) */}
+      <section className="pricing-section" id="preturi">
+        <div className="section-head">
+          <div className="badge-tag">
+            <span>💎 Planuri Flexibile</span>
+          </div>
+          <h2 className="section-title">Transparent &amp; Scalabil</h2>
+          <p className="section-subtitle">
+            Începe gratuit și scalează pe măsură ce agenții tăi autonomi cresc în volum. Înscrie-te
+            pe lista de așteptare pentru acces prioritar.
+          </p>
+        </div>
+
+        <div className="pricing-grid">
+          <div className="pricing-card">
+            <div className="tier-name">Free Developer</div>
+            <div className="tier-price">
+              0 RON <span className="tier-period">/ lună</span>
+            </div>
+            <ul className="tier-features">
+              <li>100 apeluri / lună incluse</li>
+              <li>Rate limit: max 60 cereri / minut</li>
+              <li>Acces la toate cele 7 unelte oficiale</li>
+              <li>Compatibil OpenAI, Gemini, Claude, Cursor &amp; n8n</li>
+              <li>Documentație completă &amp; schemă OpenAPI</li>
+            </ul>
+            <a
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Free%20Developer"
+              className="btn-secondary"
+              style={{ textAlign: 'center' }}
+            >
+              Intră pe lista de așteptare
+            </a>
+          </div>
+
+          <div className="pricing-card featured">
+            <div className="pricing-badge">Recomandat</div>
+            <div className="tier-name">Pro Developer</div>
+            <div className="tier-price">
+              99 RON <span className="tier-period">/ lună</span>
+            </div>
+            <ul className="tier-features">
+              <li>10.000 cereri / lună incluse</li>
+              <li>Rate limit: max 1.000 cereri / minut</li>
+              <li>Cheie API privată de producție</li>
+              <li>Prioritate înaltă în cache-ul SWR Redis</li>
+              <li>Garanție de răspuns SLA 99.95%</li>
+              <li>Suport prioritar pe email &amp; Discord</li>
+            </ul>
+            <a
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Pro%20Developer"
+              className="btn-primary"
+              style={{ textAlign: 'center' }}
+            >
+              Intră pe lista de așteptare (Pro)
+            </a>
+          </div>
+
+          <div className="pricing-card">
+            <div className="tier-name">Enterprise</div>
+            <div className="tier-price">
+              Personalizat <span className="tier-period">/ proiect</span>
+            </div>
+            <ul className="tier-features">
+              <li>Volum nelimitat de interogări</li>
+              <li>Instanță dedicată On-Premise sau VPS privat</li>
+              <li>Audit logs detaliate &amp; securitate custom</li>
+              <li>Acord de nivel al serviciilor (SLA 99.99%)</li>
+              <li>Manager tehnic dedicat &amp; asistență 24/7</li>
+            </ul>
+            <a
+              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Enterprise%20MCP%20Romania"
+              className="btn-secondary"
+              style={{ textAlign: 'center' }}
+            >
+              Contactează-ne
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Enterprise Architecture Features (Deep-Dive) */}
       <section className="features-section" id="arhitectura">
         <div className="section-head">
           <div className="badge-tag">
@@ -888,81 +969,6 @@ def check_romanian_company(cui: str) -> dict:
               Compatibilitate totală cu specificația oficială Anthropic / Linux Foundation MCP.
               Conectează orice client fără modificări de cod.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing / Developer Tiers */}
-      <section className="pricing-section" id="preturi">
-        <div className="section-head">
-          <div className="badge-tag">
-            <span>💎 Planuri Flexibile</span>
-          </div>
-          <h2 className="section-title">Transparent &amp; Scalabil</h2>
-          <p className="section-subtitle">
-            Începe gratuit și scalează pe măsură ce agenții tăi autonomi cresc în volum.
-          </p>
-        </div>
-
-        <div className="pricing-grid">
-          <div className="pricing-card">
-            <div className="tier-name">Free Developer</div>
-            <div className="tier-price">
-              0 RON <span className="tier-period">/ lună</span>
-            </div>
-            <ul className="tier-features">
-              <li>Acces la toate cele 7 unelte oficiale</li>
-              <li>Limită de 60 cereri / minut</li>
-              <li>Integrare Claude Desktop, Cursor &amp; OpenAI</li>
-              <li>Suport prin comunitate GitHub</li>
-              <li>Documentație completă &amp; exemple</li>
-            </ul>
-            <a href="#unelte" className="btn-secondary" style={{ textAlign: 'center' }}>
-              Începe Gratuit
-            </a>
-          </div>
-
-          <div className="pricing-card featured">
-            <div className="pricing-badge">Recomandat</div>
-            <div className="tier-name">Pro Developer</div>
-            <div className="tier-price">
-              99 RON <span className="tier-period">/ lună</span>
-            </div>
-            <ul className="tier-features">
-              <li>Până la 1.000 cereri / minut</li>
-              <li>Cheie API privată de producție</li>
-              <li>Prioritate înaltă în coada de cache Redis</li>
-              <li>Garanție de răspuns SLA 99.95%</li>
-              <li>Suport prioritar pe email &amp; Discord</li>
-            </ul>
-            <a
-              href="mailto:contact@mcpromania.ro?subject=Upgrade%20Pro%20MCP%20Romania"
-              className="btn-primary"
-              style={{ textAlign: 'center' }}
-            >
-              Activează Pro
-            </a>
-          </div>
-
-          <div className="pricing-card">
-            <div className="tier-name">Enterprise</div>
-            <div className="tier-price">
-              Personalizat <span className="tier-period">/ proiect</span>
-            </div>
-            <ul className="tier-features">
-              <li>Volum nelimitat de interogări</li>
-              <li>Instanță dedicată On-Premise sau VPS privat</li>
-              <li>Audit logs detaliate &amp; securitate custom</li>
-              <li>Acord de nivel al serviciilor (SLA 99.99%)</li>
-              <li>Manager tehnic dedicat &amp; asistență 24/7</li>
-            </ul>
-            <a
-              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Enterprise%20MCP%20Romania"
-              className="btn-secondary"
-              style={{ textAlign: 'center' }}
-            >
-              Contactează-ne
-            </a>
           </div>
         </div>
       </section>
