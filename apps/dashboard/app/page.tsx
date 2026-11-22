@@ -836,10 +836,12 @@ def check_romanian_company(cui: str) -> dict:
         </div>
 
         <div className="pricing-grid">
+          {/* Plan 1: Free */}
           <div className="pricing-card">
-            <div className="tier-name">Free Developer</div>
+            <div className="tier-name">Free</div>
+            <p className="tier-subtitle">Pentru testare, evaluare &amp; sandbox</p>
             <div className="tier-price">
-              0 RON <span className="tier-period">/ lună</span>
+              0€ <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
               <li>100 apeluri / lună incluse</li>
@@ -849,7 +851,7 @@ def check_romanian_company(cui: str) -> dict:
               <li>Documentație completă &amp; schemă OpenAPI</li>
             </ul>
             <a
-              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Free%20Developer"
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Free%20Plan"
               className="btn-secondary"
               style={{ textAlign: 'center' }}
             >
@@ -857,22 +859,24 @@ def check_romanian_company(cui: str) -> dict:
             </a>
           </div>
 
+          {/* Plan 2: Pro (Recomandat) */}
           <div className="pricing-card featured">
             <div className="pricing-badge">Recomandat</div>
-            <div className="tier-name">Pro Developer</div>
+            <div className="tier-name">Pro</div>
+            <p className="tier-subtitle">Suficient pentru contabil individual (50–80 clienți)</p>
             <div className="tier-price">
-              99 RON <span className="tier-period">/ lună</span>
+              29€ <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
-              <li>10.000 cereri / lună incluse</li>
-              <li>Rate limit: max 1.000 cereri / minut</li>
+              <li>5.000 apeluri / lună incluse</li>
+              <li>Rate limit: max 300 cereri / minut</li>
               <li>Cheie API privată de producție</li>
-              <li>Prioritate înaltă în cache-ul SWR Redis</li>
-              <li>Garanție de răspuns SLA 99.95%</li>
-              <li>Suport prioritar pe email &amp; Discord</li>
+              <li>Prioritate în cache-ul SWR Redis (&lt; 50ms)</li>
+              <li>Garanție de disponibilitate SLA 99.95%</li>
+              <li>Suport dedicat pe email &amp; Discord</li>
             </ul>
             <a
-              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Pro%20Developer"
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Pro%20Plan%20(29%E2%82%AC)"
               className="btn-primary"
               style={{ textAlign: 'center' }}
             >
@@ -880,24 +884,50 @@ def check_romanian_company(cui: str) -> dict:
             </a>
           </div>
 
+          {/* Plan 3: Agency */}
           <div className="pricing-card">
-            <div className="tier-name">Enterprise</div>
+            <div className="tier-name">Agency</div>
+            <p className="tier-subtitle">Bun pentru firmă mică (3–5 contabili)</p>
             <div className="tier-price">
-              Personalizat <span className="tier-period">/ proiect</span>
+              79€ <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
-              <li>Volum nelimitat de interogări</li>
-              <li>Instanță dedicată On-Premise sau VPS privat</li>
-              <li>Audit logs detaliate &amp; securitate custom</li>
-              <li>Acord de nivel al serviciilor (SLA 99.99%)</li>
-              <li>Manager tehnic dedicat &amp; asistență 24/7</li>
+              <li>15.000 apeluri / lună incluse</li>
+              <li>Rate limit extins: 1.000 cereri / minut</li>
+              <li>Până la 5 chei API pentru echipă</li>
+              <li>Monitorizare consum &amp; analitice detaliate</li>
+              <li>Prioritate maximă în cozi de procesare</li>
+              <li>Suport prioritar 24/7</li>
             </ul>
             <a
-              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Enterprise%20MCP%20Romania"
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Agency%20Plan%20(79%E2%82%AC)"
               className="btn-secondary"
               style={{ textAlign: 'center' }}
             >
-              Contactează-ne
+              Intră pe lista de așteptare (Agency)
+            </a>
+          </div>
+
+          {/* Plan 4: Custom */}
+          <div className="pricing-card">
+            <div className="tier-name">Custom</div>
+            <p className="tier-subtitle">Volume mari, integratori ERP &amp; automatizări</p>
+            <div className="tier-price">
+              150€ <span className="tier-period">/ lună</span>
+            </div>
+            <ul className="tier-features">
+              <li>30.000 apeluri / lună incluse</li>
+              <li>Fără limite restrictive de throughput</li>
+              <li>Instanță dedicată On-Premise sau VPS privat</li>
+              <li>Audit logs detaliate &amp; acord SLA 99.99%</li>
+              <li>Manager tehnic dedicat &amp; onboarding direct</li>
+            </ul>
+            <a
+              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Plan%20Custom%20(150%E2%82%AC)%20MCP%20Romania"
+              className="btn-secondary"
+              style={{ textAlign: 'center' }}
+            >
+              Contactează-ne (Custom)
             </a>
           </div>
         </div>
