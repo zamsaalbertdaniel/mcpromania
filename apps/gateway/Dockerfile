@@ -1,5 +1,5 @@
 FROM node:22-alpine AS base
-RUN npm install -g pnpm@latest
+RUN npm install -g pnpm@12.18.0
 
 FROM base AS builder
 WORKDIR /app

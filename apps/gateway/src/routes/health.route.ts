@@ -12,6 +12,7 @@ export function registerHealthRoute(
     bnrCircuit: CircuitBreaker;
     justCircuit?: CircuitBreaker;
     insolvencyCircuit?: CircuitBreaker;
+    masterApiKey?: string;
   }
 ): void {
   app.get('/health', async (c) => {
@@ -37,6 +38,24 @@ export function registerHealthRoute(
       circuits.bnr === 'OPEN' ||
       circuits.just === 'OPEN' ||
       circuits.insolvency === 'OPEN';
+
+    // In production, unauthenticated public requests get a clean status without leaking internal topology.
+    // Full diagnostic details (circuits + redis status) are available in test mode or with MASTER_API_KEY.
+    const authHeader = c.req.header('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    const isMaster = Boolean(deps.masterApiKey && token === deps.masterApiKey);
+    const isTest = process.env.NODE_ENV === 'test';
+
+    if (!isMaster && !isTest) {
+      return c.json(
+        {
+          ok: !degraded,
+          status: degraded ? 'degraded' : 'ok',
+        },
+        degraded ? 503 : 200
+      );
+    }
+
     return c.json({
       ok: true,
       status: degraded ? 'degraded' : 'ok',

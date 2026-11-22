@@ -139,6 +139,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     bnrCircuit,
     justCircuit,
     insolvencyCircuit,
+    masterApiKey: deps.env.MASTER_API_KEY,
   });
   registerOpenApiRoute(app);
 

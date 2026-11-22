@@ -1,5 +1,22 @@
 api.mcpromania.ro {
-    reverse_proxy 127.0.0.1:4000 {
+    encode gzip zstd
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # Load-balance across both gateway containers with active health check
+    reverse_proxy 127.0.0.1:4000 127.0.0.1:4001 {
+        lb_policy round_robin
+        health_uri /health
+        health_interval 5s
+        health_timeout 2s
         flush_interval -1
     }
 }
