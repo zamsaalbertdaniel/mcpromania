@@ -841,7 +841,7 @@ def check_romanian_company(cui: str) -> dict:
             <div className="tier-name">Free</div>
             <p className="tier-subtitle">Pentru testare, evaluare &amp; sandbox</p>
             <div className="tier-price">
-              0€ <span className="tier-period">/ lună</span>
+              0 RON <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
               <li>100 apeluri / lună incluse</li>
@@ -865,7 +865,7 @@ def check_romanian_company(cui: str) -> dict:
             <div className="tier-name">Pro</div>
             <p className="tier-subtitle">Suficient pentru contabil individual (50–80 clienți)</p>
             <div className="tier-price">
-              29€ <span className="tier-period">/ lună</span>
+              150 RON <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
               <li>5.000 apeluri / lună incluse</li>
@@ -876,7 +876,7 @@ def check_romanian_company(cui: str) -> dict:
               <li>Suport dedicat pe email &amp; Discord</li>
             </ul>
             <a
-              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Pro%20Plan%20(29%E2%82%AC)"
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Pro%20Plan%20(150%20RON)"
               className="btn-primary"
               style={{ textAlign: 'center' }}
             >
@@ -889,7 +889,7 @@ def check_romanian_company(cui: str) -> dict:
             <div className="tier-name">Agency</div>
             <p className="tier-subtitle">Bun pentru firmă mică (3–5 contabili)</p>
             <div className="tier-price">
-              79€ <span className="tier-period">/ lună</span>
+              420 RON <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
               <li>15.000 apeluri / lună incluse</li>
@@ -900,7 +900,7 @@ def check_romanian_company(cui: str) -> dict:
               <li>Suport prioritar 24/7</li>
             </ul>
             <a
-              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Agency%20Plan%20(79%E2%82%AC)"
+              href="mailto:waitlist@mcpromania.ro?subject=Inscriere%20Waitlist%20-%20Agency%20Plan%20(420%20RON)"
               className="btn-secondary"
               style={{ textAlign: 'center' }}
             >
@@ -913,7 +913,7 @@ def check_romanian_company(cui: str) -> dict:
             <div className="tier-name">Custom</div>
             <p className="tier-subtitle">Volume mari, integratori ERP &amp; automatizări</p>
             <div className="tier-price">
-              150€ <span className="tier-period">/ lună</span>
+              790 RON <span className="tier-period">/ lună</span>
             </div>
             <ul className="tier-features">
               <li>30.000 apeluri / lună incluse</li>
@@ -923,7 +923,7 @@ def check_romanian_company(cui: str) -> dict:
               <li>Manager tehnic dedicat &amp; onboarding direct</li>
             </ul>
             <a
-              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Plan%20Custom%20(150%E2%82%AC)%20MCP%20Romania"
+              href="mailto:contact@mcpromania.ro?subject=Solicitare%20Plan%20Custom%20(790%20RON)%20MCP%20Romania"
               className="btn-secondary"
               style={{ textAlign: 'center' }}
             >
