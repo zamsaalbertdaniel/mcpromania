@@ -2,6 +2,16 @@ import { z } from 'zod';
 
 // Admin Client (service_role) se folosește doar în workers. Gateway-ul folosește întotdeauna client scoped pe tenant_id.
 
+export const PlanTierSchema = z.enum(['free', 'pro', 'agency', 'custom']);
+export type PlanTier = z.infer<typeof PlanTierSchema>;
+
+export const PLAN_MONTHLY_LIMITS: Record<PlanTier, number> = {
+  free: 100,
+  pro: 5_000,
+  agency: 15_000,
+  custom: 30_000,
+};
+
 export const TenantSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
@@ -14,6 +24,9 @@ export const ApiKeySchema = z.object({
   tenantId: z.string().uuid(),
   name: z.string().min(1),
   keyHash: z.string().min(1),
+  planTier: PlanTierSchema.default('free'),
+  monthlyLimit: z.number().int().positive().default(100),
+  isActive: z.boolean().default(true),
   createdAt: z.string().datetime(),
 });
 export type ApiKey = z.infer<typeof ApiKeySchema>;

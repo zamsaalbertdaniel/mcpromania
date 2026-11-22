@@ -85,6 +85,15 @@ describe('rate limiter', () => {
       set: async () => {
         throw new Error('Redis connection refused');
       },
+      del: async () => {
+        throw new Error('Redis connection refused');
+      },
+      incr: async () => {
+        throw new Error('Redis connection refused');
+      },
+      expire: async () => {
+        throw new Error('Redis connection refused');
+      },
       ping: async () => {
         throw new Error('Redis connection refused');
       },

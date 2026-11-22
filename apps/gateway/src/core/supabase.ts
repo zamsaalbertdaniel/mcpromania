@@ -9,6 +9,8 @@ const VerifyRowSchema = z.object({
   api_key_id: z.string().uuid(),
   tenant_id: z.string().uuid(),
   key_name: z.string().min(1),
+  plan_tier: z.enum(['free', 'pro', 'agency', 'custom']).default('free'),
+  monthly_limit: z.number().int().positive().default(100),
 });
 
 export type UsageLogInput = {
@@ -23,7 +25,8 @@ export interface SupabasePort {
 }
 
 export function createSupabaseGateway(env: GatewayEnv): SupabasePort {
-  const client = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+  const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || '';
+  const client = createClient(env.SUPABASE_URL, supabaseKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
@@ -46,6 +49,8 @@ export function createSupabaseGateway(env: GatewayEnv): SupabasePort {
         apiKeyId: row.api_key_id,
         tenantId: row.tenant_id,
         keyName: row.key_name,
+        planTier: row.plan_tier,
+        monthlyLimit: row.monthly_limit,
       };
     },
     async recordUsageLog(input) {

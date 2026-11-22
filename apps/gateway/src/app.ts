@@ -4,12 +4,15 @@ import type { AppEnv } from './app-env.js';
 import type { GatewayEnv } from './config/env.js';
 import { buildError } from './core/api-response.js';
 import { CircuitBreaker } from './core/circuit-breaker.js';
+import { AppError } from './core/errors.js';
+import { RedisQuotaLimiter } from './core/quota-limiter.js';
 import { RedisRateLimiter } from './core/rate-limiter.js';
 import type { RedisPort } from './core/redis.js';
 import type { SupabasePort } from './core/supabase.js';
 import { SwrCache } from './core/swr-cache.js';
-import { createAuthMiddleware } from './middleware/auth.js';
+import { createAuthMiddleware, revokeApiKey } from './middleware/auth.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { createQuotaMiddleware } from './middleware/quota.js';
 import { createRateLimitMiddleware } from './middleware/rate-limit.js';
 import { registerHealthRoute } from './routes/health.route.js';
 import { registerMcpRoute } from './routes/mcp/streamable.js';
@@ -113,11 +116,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     windowMs: 60_000,
     now,
   });
+  const quotaLimiter = new RedisQuotaLimiter(deps.redis, { now });
   const auth = createAuthMiddleware({
     redis: deps.redis,
     supabase: deps.supabase,
     env: deps.env,
   });
+  const quota = createQuotaMiddleware(quotaLimiter);
   const rateLimit = createRateLimitMiddleware(limiter);
 
   const app = new Hono<AppEnv>();
@@ -137,7 +142,26 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   });
   registerOpenApiRoute(app);
 
+  // Management endpoint: Instant API Key Revocation (requires MASTER_API_KEY)
+  app.post('/api/v1/auth/revoke', async (c) => {
+    const authHeader = c.req.header('authorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    if (!token || token !== deps.env.MASTER_API_KEY) {
+      throw new AppError(401, 'UNAUTHORIZED', 'Acces neautorizat la endpointul de administrare');
+    }
+    const body = (await c.req.json().catch(() => ({}))) as {
+      apiKeyId?: string;
+      keyHash?: string;
+    };
+    if (!body.apiKeyId && !body.keyHash) {
+      throw new AppError(400, 'BAD_REQUEST', 'Specificați apiKeyId sau keyHash pentru revocare');
+    }
+    await revokeApiKey(deps.redis, { apiKeyId: body.apiKeyId, keyHash: body.keyHash });
+    return c.json({ ok: true, message: 'Cheie API revocată cu succes' });
+  });
+
   app.use('/api/v1/*', auth);
+  app.use('/api/v1/*', quota);
   app.use('/api/v1/*', rateLimit);
   registerAnafRoute(app, { anaf, supabase: deps.supabase, now });
   registerBnrRoute(app, { bnr, supabase: deps.supabase, now });
@@ -147,10 +171,12 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   registerInsolvencyRoute(app, { insolvency, supabase: deps.supabase, now });
 
   app.use('/mcp/*', auth);
+  app.use('/mcp/*', quota);
   app.use('/mcp/*', rateLimit);
 
   // Alias /sse for legacy clients and seamless backwards compatibility
   app.use('/sse/*', auth);
+  app.use('/sse/*', quota);
   app.use('/sse/*', rateLimit);
 
   registerMcpRoute(app, { anaf, bnr, iban, insolvency, just, onrc, supabase: deps.supabase, now });

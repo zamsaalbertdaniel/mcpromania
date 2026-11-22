@@ -14,6 +14,8 @@ const CachedAuthSchema = z.object({
   apiKeyId: z.string().uuid(),
   tenantId: z.string().uuid(),
   keyName: z.string().min(1),
+  planTier: z.enum(['free', 'pro', 'agency', 'custom']).default('free'),
+  monthlyLimit: z.number().int().positive().default(100),
 });
 
 export type AuthDeps = {
@@ -89,6 +91,17 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
       throw new AppError(401, 'UNAUTHORIZED', 'Cheie API invalidă');
     }
 
+    // P1 #5: Instant Revocation check
+    try {
+      const isRevoked = await deps.redis.get(`mcpr:auth:revoked:${auth.apiKeyId}`);
+      if (isRevoked) {
+        await deps.redis.del(cacheKey);
+        throw new AppError(401, 'UNAUTHORIZED', 'Cheia API a fost revocată');
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+    }
+
     if (!cached) {
       try {
         await deps.redis.set(cacheKey, JSON.stringify(auth), 'EX', deps.env.AUTH_CACHE_TTL_SECONDS);
@@ -100,6 +113,19 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
     c.set('auth', auth);
     await next();
   };
+}
+
+export async function revokeApiKey(
+  redis: RedisPort,
+  options: { apiKeyId?: string; keyHash?: string }
+): Promise<void> {
+  if (options.keyHash) {
+    await redis.del(`mcpr:auth:${options.keyHash}`);
+    await redis.set(`mcpr:auth:invalid:${options.keyHash}`, '1', 'EX', 86_400);
+  }
+  if (options.apiKeyId) {
+    await redis.set(`mcpr:auth:revoked:${options.apiKeyId}`, '1', 'EX', 86_400);
+  }
 }
 
 async function recordFailedAuth(redis: RedisPort, ip: string): Promise<void> {

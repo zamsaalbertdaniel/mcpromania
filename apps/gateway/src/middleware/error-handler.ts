@@ -5,12 +5,30 @@ import type { AppEnv } from '../app-env.js';
 import { buildError } from '../core/api-response.js';
 import { AppError } from '../core/errors.js';
 
+import { MonthlyQuotaError } from './quota.js';
 import { RateLimitError } from './rate-limit.js';
 
 export const errorHandler: ErrorHandler<AppEnv> = (error, c) => {
   const requestId = c.get('requestId') ?? crypto.randomUUID();
   const startedAt = c.get('startedAt') ?? Date.now();
   const now = Date.now();
+
+  if (error instanceof MonthlyQuotaError) {
+    c.header('X-Quota-Limit', String(error.quota.limit));
+    c.header('X-Quota-Remaining', String(error.quota.remaining));
+    c.header('X-Quota-Used', String(error.quota.used));
+    c.header('X-Quota-Reset', String(error.quota.reset));
+    return c.json(
+      buildError({
+        code: error.code,
+        message: error.message,
+        requestId,
+        startedAt,
+        now,
+      }),
+      429
+    );
+  }
 
   if (error instanceof RateLimitError) {
     c.header('X-RateLimit-Limit', String(error.rateLimit.limit));

@@ -10,6 +10,8 @@ export const TEST_AUTH: AuthContext = {
   apiKeyId: '11111111-1111-4111-8111-111111111111',
   tenantId: '22222222-2222-4222-8222-222222222222',
   keyName: 'test',
+  planTier: 'pro',
+  monthlyLimit: 5000,
 };
 
 export const VALID_CUI = '14399840';
@@ -19,6 +21,7 @@ export const testEnv: GatewayEnv = {
   REDIS_URL: 'redis://127.0.0.1:6379',
   SUPABASE_URL: 'https://example.supabase.co',
   SUPABASE_ANON_KEY: 'anon-test-key',
+  MASTER_API_KEY: 'mcpr_live_secret123',
   ANAF_API_URL: 'https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva',
   BNR_XML_URL: 'https://curs.bnr.ro/nbrfxrates.xml',
   JUST_API_URL: 'http://portalquery.just.ro/Query.asmx',

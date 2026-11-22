@@ -12,6 +12,9 @@ export type RedisPipeline = {
 export interface RedisPort {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, mode: 'EX', ttlSeconds: number): Promise<unknown>;
+  del(key: string): Promise<number>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
   ping(): Promise<string>;
   quit(): Promise<void>;
   readonly status: string;
@@ -35,6 +38,9 @@ export function createRedis(url: string): RedisPort {
     },
     get: (key) => client.get(key),
     set: (key, value, mode, ttlSeconds) => client.set(key, value, mode, ttlSeconds),
+    del: (key) => client.del(key),
+    incr: (key) => client.incr(key),
+    expire: (key, seconds) => client.expire(key, seconds),
     ping: () => client.ping(),
     quit: async () => {
       await client.quit();

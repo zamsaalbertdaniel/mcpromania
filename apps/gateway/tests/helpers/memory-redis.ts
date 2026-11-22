@@ -30,6 +30,38 @@ export class MemoryRedis implements RedisPort {
     return 'OK';
   }
 
+  async del(key: string): Promise<number> {
+    const deleted = this.strings.delete(key) ? 1 : 0;
+    this.zsets.delete(key);
+    this.zsetExpiry.delete(key);
+    return deleted;
+  }
+
+  async incr(key: string): Promise<number> {
+    const entry = this.strings.get(key);
+    let next = 1;
+    let expiresAt: number | null = null;
+    if (entry) {
+      if (entry.expiresAt !== null && entry.expiresAt <= this.now()) {
+        next = 1;
+      } else {
+        next = Number(entry.value) + 1;
+        expiresAt = entry.expiresAt;
+      }
+    }
+    this.strings.set(key, { value: String(next), expiresAt });
+    return next;
+  }
+
+  async expire(key: string, seconds: number): Promise<number> {
+    const entry = this.strings.get(key);
+    if (!entry) {
+      return 0;
+    }
+    this.strings.set(key, { value: entry.value, expiresAt: this.now() + seconds * 1000 });
+    return 1;
+  }
+
   async ping(): Promise<string> {
     return 'PONG';
   }
