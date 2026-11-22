@@ -309,15 +309,48 @@ describe('InsolvencyService - Logic and Classification', () => {
     );
   });
 
+  it('fails safely with 503 without caching when ANAF lookup fails', async () => {
+    const failingAnaf = {
+      lookup: async () => {
+        throw new Error('ANAF upstream timeout');
+      },
+    } as unknown as AnafService;
+
+    const mockJustService = {
+      search: async () => ({
+        data: { query: 'test', queryType: 'numeParte', totalCases: 0, cases: [] },
+      }),
+    } as unknown as JustService;
+
+    const insolvency = createInsolvencyService({
+      anaf: failingAnaf,
+      just: mockJustService,
+      cache,
+      circuit,
+      now: () => clock.value,
+    });
+
+    await expect(insolvency.checkInsolvency({ cui: '14399840' })).rejects.toThrow(
+      'Verificarea insolvenței este temporar indisponibilă'
+    );
+
+    // Verify cache has NOT stored any false IN_BONIS
+    const cached = await redis.get('mcpr:swr:insolvency:cui:14399840');
+    expect(cached).toBeNull();
+  });
+
   it('isInsolvencyCase correctly identifies insolvency keywords', () => {
     expect(
       isInsolvencyCase({
         numar: '1/1/2024',
+        numarVechi: null,
+        data: null,
         institutie: 'TribunalulBUCURESTI',
         departament: null,
         categorieCaz: 'Civil',
         stadiuProcesual: 'Fond',
         obiect: 'cererea debitorului conform Legii 85/2014',
+        dataModificare: null,
         parti: [],
         sedinte: [],
         caiAtac: [],
@@ -327,11 +360,14 @@ describe('InsolvencyService - Logic and Classification', () => {
     expect(
       isInsolvencyCase({
         numar: '2/1/2024',
+        numarVechi: null,
+        data: null,
         institutie: 'Judecatorie',
         departament: null,
         categorieCaz: 'Civil',
         stadiuProcesual: 'Fond',
         obiect: 'divorţ',
+        dataModificare: null,
         parti: [],
         sedinte: [],
         caiAtac: [],

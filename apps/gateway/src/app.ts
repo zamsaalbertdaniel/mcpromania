@@ -39,6 +39,7 @@ export type GatewayDeps = {
     anaf: CircuitBreaker;
     bnr: CircuitBreaker;
     just?: CircuitBreaker;
+    insolvency?: CircuitBreaker;
   };
 };
 
@@ -61,6 +62,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     });
   const justCircuit =
     deps.circuits?.just ??
+    new CircuitBreaker({
+      threshold: deps.env.CIRCUIT_FAILURE_THRESHOLD,
+      cooldownMs: deps.env.CIRCUIT_COOLDOWN_MS,
+      now,
+    });
+  const insolvencyCircuit =
+    deps.circuits?.insolvency ??
     new CircuitBreaker({
       threshold: deps.env.CIRCUIT_FAILURE_THRESHOLD,
       cooldownMs: deps.env.CIRCUIT_COOLDOWN_MS,
@@ -97,7 +105,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     anaf,
     just,
     cache,
-    circuit: justCircuit,
+    circuit: insolvencyCircuit,
     now,
   });
   const limiter = new RedisRateLimiter(deps.redis, {
@@ -120,7 +128,13 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
     await next();
   });
 
-  registerHealthRoute(app, { redis: deps.redis, anafCircuit, bnrCircuit, justCircuit });
+  registerHealthRoute(app, {
+    redis: deps.redis,
+    anafCircuit,
+    bnrCircuit,
+    justCircuit,
+    insolvencyCircuit,
+  });
   registerOpenApiRoute(app);
 
   app.use('/api/v1/*', auth);
@@ -134,6 +148,11 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
 
   app.use('/mcp/*', auth);
   app.use('/mcp/*', rateLimit);
+
+  // Alias /sse for legacy clients and seamless backwards compatibility
+  app.use('/sse/*', auth);
+  app.use('/sse/*', rateLimit);
+
   registerMcpRoute(app, { anaf, bnr, iban, insolvency, just, onrc, supabase: deps.supabase, now });
 
   app.notFound((c) => {

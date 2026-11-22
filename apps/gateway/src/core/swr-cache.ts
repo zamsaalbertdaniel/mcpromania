@@ -56,7 +56,10 @@ export class SwrCache {
     }
 
     const stale = entry && now < entry.stale_until ? entry : null;
-    if (stale && options.circuit.getState() === 'OPEN') {
+    if (stale) {
+      if (options.circuit.getState() !== 'OPEN') {
+        this.revalidateInBackground(options);
+      }
       return this.staleHit(stale, options.circuit.getState());
     }
 
@@ -103,6 +106,21 @@ export class SwrCache {
       stale: true,
       circuit_status: circuitStatus,
     };
+  }
+
+  private revalidateInBackground<T>(options: SwrLoadOptions<T>): void {
+    if (this.inflight.has(options.key)) return;
+    const inflightPromise = (async () => {
+      try {
+        const data = await options.circuit.execute(options.load);
+        await this.write(options.key, data, options.freshTtlSec, options.staleTtlSec);
+      } catch (error) {
+        console.warn(`SWR background revalidation failed for ${options.key}:`, error);
+      } finally {
+        this.inflight.delete(options.key);
+      }
+    })();
+    this.inflight.set(options.key, inflightPromise);
   }
 
   private async read<T>(key: string, schema: z.ZodType<T>): Promise<CacheEnvelope<T> | null> {

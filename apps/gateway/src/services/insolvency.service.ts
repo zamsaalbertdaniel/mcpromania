@@ -67,11 +67,33 @@ export function createInsolvencyService(deps: InsolvencyServiceDeps): Insolvency
           let companyName = targetName ?? '';
 
           if (cui) {
+            let anafHit;
             try {
-              const anafHit = await deps.anaf.lookup(cui);
-              companyName = anafHit.data.denumire;
-            } catch {
-              companyName = `CUI ${cui}`;
+              anafHit = await deps.anaf.lookup(cui);
+            } catch (error) {
+              // P0 Fail-Safe: Do NOT guess or fall back to "CUI <nr>"!
+              // If ANAF is unavailable or throws, fail safely without caching false IN_BONIS.
+              if (error instanceof AppError && error.status === 404) {
+                throw new AppError(
+                  404,
+                  'NOT_FOUND',
+                  `Compania cu CUI ${cui} nu a fost găsită în evidențele oficiale ANAF.`
+                );
+              }
+              throw new AppError(
+                503,
+                'SERVICE_UNAVAILABLE',
+                `Verificarea insolvenței este temporar indisponibilă: baza de date ANAF nu a putut valida denumirea oficială pentru CUI ${cui}.`
+              );
+            }
+
+            companyName = anafHit?.data?.denumire;
+            if (!companyName || companyName.trim().length < 2) {
+              throw new AppError(
+                404,
+                'NOT_FOUND',
+                `Nu s-a putut identifica denumirea oficială a companiei pentru CUI ${cui}.`
+              );
             }
           }
 

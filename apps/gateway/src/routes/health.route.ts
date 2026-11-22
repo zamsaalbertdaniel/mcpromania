@@ -11,6 +11,7 @@ export function registerHealthRoute(
     anafCircuit: CircuitBreaker;
     bnrCircuit: CircuitBreaker;
     justCircuit?: CircuitBreaker;
+    insolvencyCircuit?: CircuitBreaker;
   }
 ): void {
   app.get('/health', async (c) => {
@@ -27,11 +28,15 @@ export function registerHealthRoute(
     if (deps.justCircuit) {
       circuits.just = deps.justCircuit.getState();
     }
+    if (deps.insolvencyCircuit) {
+      circuits.insolvency = deps.insolvencyCircuit.getState();
+    }
     const degraded =
       redis === 'down' ||
       circuits.anaf === 'OPEN' ||
       circuits.bnr === 'OPEN' ||
-      circuits.just === 'OPEN';
+      circuits.just === 'OPEN' ||
+      circuits.insolvency === 'OPEN';
     return c.json({
       ok: true,
       status: degraded ? 'degraded' : 'ok',

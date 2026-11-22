@@ -407,7 +407,7 @@ const response = await ai.models.generateContent({
       "args": [
         "-y",
         "@modelcontextprotocol/server-fetch",
-        "https://api.mcpromania.ro/sse"
+        "https://api.mcpromania.ro/mcp"
       ],
       "env": {
         "MCP_API_KEY": "YOUR_API_KEY_HERE"
@@ -424,7 +424,7 @@ const response = await ai.models.generateContent({
       code: `{
   "mcpServers": {
     "mcp-romania-gateway": {
-      "url": "https://api.mcpromania.ro/sse",
+      "url": "https://api.mcpromania.ro/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_API_KEY_HERE"
       }
@@ -439,7 +439,7 @@ const response = await ai.models.generateContent({
       code: `{
   "mcpServers": {
     "mcp-romania": {
-      "serverUrl": "https://api.mcpromania.ro/sse",
+      "serverUrl": "https://api.mcpromania.ro/mcp",
       "auth": {
         "type": "bearer",
         "token": "YOUR_API_KEY_HERE"
@@ -456,7 +456,7 @@ const response = await ai.models.generateContent({
 Method: GET
 URL: https://api.mcpromania.ro/api/v1/insolvency/check/{{ $json.cui }}
 Headers:
-  Authorization: Bearer mcpr_live_secret123
+  Authorization: Bearer YOUR_API_KEY_HERE
   Accept: application/json
 
 // Răspuns instantaneu cu cache SWR sub 50ms`,
@@ -470,7 +470,7 @@ import requests
 
 def check_romanian_company(cui: str) -> dict:
     """Verifică datele fiscale și riscul de insolvență din România."""
-    headers = {"Authorization": "Bearer YOUR_API_KEY"}
+    headers = {"Authorization": "Bearer YOUR_API_KEY_HERE"}
     res = requests.get(f"https://api.mcpromania.ro/api/v1/insolvency/check/{cui}", headers=headers)
     return res.json()
 
@@ -671,12 +671,13 @@ def check_romanian_company(cui: str) -> dict:
       <section className="sandbox-section" id="unelte">
         <div className="section-head">
           <div className="badge-tag">
-            <span>✨ Testează în Timp Real</span>
+            <span>⚡ Mod Sandbox Interactiv (Demo cu date reale)</span>
           </div>
           <h2 className="section-title">Cele 7 Unelte Oficiale România</h2>
           <p className="section-subtitle">
             Alege o unealtă din meniu, selectează o companie sau un parametru demo și observă viteza
-            și structura datelor returnate de gateway.
+            și structura datelor returnate de gateway (răspunsuri demo bazate pe interogări reale
+            din producție).
           </p>
         </div>
 

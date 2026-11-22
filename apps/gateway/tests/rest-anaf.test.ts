@@ -88,9 +88,16 @@ describe('GET /api/v1/anaf/cui/:cui', () => {
       expect.objectContaining({ route: '/api/v1/anaf/cui/:cui' }),
     ]);
 
-    const cached = await app.request(`/api/v1/anaf/cui/${VALID_CUI}?apiKey=${TEST_API_KEY}`);
+    const cached = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, {
+      headers: { authorization: `Bearer ${TEST_API_KEY}` },
+    });
     expect(cached.status).toBe(200);
     expect(supabase.verifyCalls[0]).toBe(2);
+
+    // Verify ?apiKey query param is rejected to avoid leaking keys in URLs and logs
+    const rejectedQuery = await app.request(`/api/v1/anaf/cui/${VALID_CUI}?apiKey=${TEST_API_KEY}`);
+    expect(rejectedQuery.status).toBe(401);
+
     releaseLog();
   });
 });

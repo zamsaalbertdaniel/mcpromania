@@ -91,4 +91,6 @@ export function registerMcpRoute(
 
   app.all('/mcp', handleMcp);
   app.all('/mcp/*', handleMcp);
+  app.all('/sse', handleMcp);
+  app.all('/sse/*', handleMcp);
 }

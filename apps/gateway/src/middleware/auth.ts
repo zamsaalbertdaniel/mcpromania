@@ -24,17 +24,71 @@ export type AuthDeps = {
 
 export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const token = readToken(c.req.header('authorization'), c.req.query('apiKey'));
-    if (!token) {
-      throw new AppError(401, 'UNAUTHORIZED', 'Cheie API lipsă');
+    const clientIp =
+      c.req.header('cf-connecting-ip') ||
+      c.req.header('x-real-ip') ||
+      c.req.header('x-forwarded-for')?.split(',')[0].trim() ||
+      'unknown';
+
+    // Anti-brute-force: check failed authentication attempts from this IP (max 10 / 60s)
+    if (clientIp !== 'unknown') {
+      try {
+        const failCount = await deps.redis.get(`mcpr:auth:failed:${clientIp}`);
+        if (Number(failCount ?? '0') >= 10) {
+          throw new AppError(
+            429,
+            'RATE_LIMIT_EXCEEDED',
+            'Prea multe încercări eșuate de autentificare de pe acest IP. Reîncercați în 60 de secunde.'
+          );
+        }
+      } catch (err) {
+        if (err instanceof AppError) throw err;
+      }
     }
+
+    // P1 #4: Only accept Authorization: Bearer <token>. Query string ?apiKey= is strictly disabled.
+    const token = readToken(c.req.header('authorization'));
+    if (!token) {
+      throw new AppError(
+        401,
+        'UNAUTHORIZED',
+        'Cheie API lipsă. Trimiteți cheia prin header-ul Authorization: Bearer <cheie>.'
+      );
+    }
+
     const hash = createHash('sha256').update(token).digest('hex');
+
+    // Negative cache check: fail fast on recently rejected invalid keys
+    const invalidCacheKey = `mcpr:auth:invalid:${hash}`;
+    try {
+      const isKnownInvalid = await deps.redis.get(invalidCacheKey);
+      if (isKnownInvalid) {
+        if (clientIp !== 'unknown') {
+          await recordFailedAuth(deps.redis, clientIp);
+        }
+        throw new AppError(401, 'UNAUTHORIZED', 'Cheie API invalidă');
+      }
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+    }
+
     const cacheKey = `mcpr:auth:${hash}`;
     const cached = await readCache(deps.redis, cacheKey);
     const auth = cached ?? (await deps.supabase.verifyApiKey(hash));
+
     if (!auth) {
+      // Store negative cache for 30s to shield Supabase from brute-force
+      try {
+        await deps.redis.set(invalidCacheKey, '1', 'EX', 30);
+      } catch (err) {
+        console.warn('Negative auth cache write failed:', err);
+      }
+      if (clientIp !== 'unknown') {
+        await recordFailedAuth(deps.redis, clientIp);
+      }
       throw new AppError(401, 'UNAUTHORIZED', 'Cheie API invalidă');
     }
+
     if (!cached) {
       try {
         await deps.redis.set(cacheKey, JSON.stringify(auth), 'EX', deps.env.AUTH_CACHE_TTL_SECONDS);
@@ -42,20 +96,31 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
         console.warn('Auth cache write failed, continuing without cache:', error);
       }
     }
+
     c.set('auth', auth);
     await next();
   };
 }
 
-function readToken(authorization: string | undefined, apiKey: string | undefined): string | null {
+async function recordFailedAuth(redis: RedisPort, ip: string): Promise<void> {
+  try {
+    const key = `mcpr:auth:failed:${ip}`;
+    const raw = await redis.get(key);
+    const count = Number(raw ?? '0') + 1;
+    await redis.set(key, String(count), 'EX', 60);
+  } catch (error) {
+    console.warn('Failed auth rate counter update failed:', error);
+  }
+}
+
+function readToken(authorization: string | undefined): string | null {
   if (authorization) {
     const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
     if (match?.[1]) {
       return match[1];
     }
   }
-  const queryKey = apiKey?.trim();
-  return queryKey ? queryKey : null;
+  return null;
 }
 
 async function readCache(redis: RedisPort, key: string): Promise<AuthContext | null> {
