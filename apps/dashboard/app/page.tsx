@@ -5,281 +5,152 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 type AITab = 'openai' | 'gemini' | 'claude' | 'cursor' | 'windsurf' | 'n8n' | 'langchain';
-type ToolKey =
-  | 'anaf_lookup'
-  | 'insolvency_risk_check'
-  | 'portal_just_search'
-  | 'bnr_exchange_rate'
-  | 'iban_validate'
-  | 'onrc_validate_regcom'
-  | 'onrc_company_lookup';
 
-interface ToolDef {
-  key: ToolKey;
+interface ToolInfo {
+  key: string;
   name: string;
   badge: string;
   category: string;
+  source: string;
+  endpoint: string;
+  mcpTool: string;
   description: string;
-  defaultParam: string;
-  paramLabel: string;
-  examples: { label: string; value: string }[];
-  mockResult: (val: string) => Record<string, unknown>;
+  capabilities: string[];
+  paramFormat: string;
 }
 
-const TOOLS: Record<ToolKey, ToolDef> = {
-  insolvency_risk_check: {
+const TOOLS_CATALOG: ToolInfo[] = [
+  {
+    key: 'anaf_lookup',
+    name: 'ANAF Info & TVA',
+    badge: '🏛️',
+    category: 'Fiscalitate & Conformitate',
+    source: 'Ministerul Finanțelor / ANAF WebServices',
+    endpoint: 'GET /api/v1/anaf/company/:cui',
+    mcpTool: 'anaf_lookup',
+    description:
+      'Interogare oficială în timp real pentru verificarea stării de funcționare a societăților comerciale din România, regimul de TVA și e-Factura.',
+    capabilities: [
+      'Stare fiscală curentă: ACTIV / INACTIV / RADIAT',
+      'Plătitor TVA, TVA la încasare și Split TVA',
+      'Verificare înregistrare în registrul RO e-Factura',
+      'Denumire legală completă, sediu social și adresă fiscală',
+    ],
+    paramFormat: 'Cod Unic de Înregistrare (CUI / CIF) (ex: 14399840 sau RO14399840)',
+  },
+  {
     key: 'insolvency_risk_check',
     name: 'Insolvență & BPI Just',
     badge: '⚖️',
     category: 'Risc & Conformitate',
+    source: 'Buletinul Procedurilor de Insolvență & Just.ro',
+    endpoint: 'GET /api/v1/insolvency/check/:cui',
+    mcpTool: 'insolvency_risk_check',
     description:
-      'Verifică dacă o firmă se află în insolvență, faliment sau concordat în Buletinul Procedurilor de Insolvență și instanțe.',
-    defaultParam: '14399840',
-    paramLabel: 'CUI sau Denumire Companie',
-    examples: [
-      { label: 'eMAG (Dante Int.)', value: '14399840' },
-      { label: 'Dedeman SRL', value: '2816464' },
-      { label: 'Dosar Faliment Cluj', value: '340/1285/2026' },
+      'Diagnostic automat de solvabilitate comercială. Diferențiază inteligent calitatea de debitor (risc real) de cea de creditor (recuperare creanțe).',
+    capabilities: [
+      'Clasificare de risc sintetică: IN_BONIS / FALIMENT / CONCORDAT',
+      'Filtrare automată: elimină alarmele false pentru creditori',
+      'Număr dosare deschise pe Legea 85/2014 și instanțe judecătorești',
+      'Identificare practician în insolvență / lichidator judiciar',
     ],
-    mockResult: (val) => {
-      const isClean =
-        val.includes('14399840') || val.includes('2816464') || val.toLowerCase().includes('dante');
-      if (isClean) {
-        return {
-          ok: true,
-          data: {
-            cui: val,
-            name: val.includes('14399840') ? 'DANTE INTERNATIONAL SA' : 'DEDEMAN SRL',
-            status: 'IN_BONIS',
-            hasInsolvencyRisk: false,
-            riskLevel: 'LOW',
-            summary:
-              'Compania este activă (IN BONIS). Nu figurează ca debitoare în dosare de insolvență sau faliment.',
-            totalCases: 0,
-            cases: [],
-            creditorMentionsNotice:
-              'Compania figurează exclusiv ca parte creditoare care recuperează creanțe de la terți debitori.',
-          },
-        };
-      }
-      return {
-        ok: true,
-        data: {
-          cui: val,
-          name: 'SOCIETATE SUB INCIDENTA LEGII 85/2014',
-          status: 'FALIMENT',
-          hasInsolvencyRisk: true,
-          riskLevel: 'CRITICAL',
-          summary:
-            'Atenție: Compania se află în procedură de FALIMENT conform dosarului judiciar înregistrat la Tribunal.',
-          totalCases: 1,
-          cases: [
-            {
-              caseNumber: '340/1285/2026',
-              court: 'TribunalulComercialCLUJ',
-              department: 'Secția Faliment',
-              filingDate: '2026-02-14T09:00:00',
-              status: 'FALIMENT',
-              stage: 'Fond',
-              judicialAdministrator: 'CONSORTIUL DE PRACTICIENI IN INSOLVENTA SPRL',
-            },
-          ],
-        },
-      };
-    },
+    paramFormat: 'CUI companie (ex: 14399840)',
   },
-  anaf_lookup: {
-    key: 'anaf_lookup',
-    name: 'ANAF Info & TVA',
-    badge: '🏛️',
-    category: 'Fiscalitate',
-    description:
-      'Interogare oficială ANAF în timp real: stare de funcționare, plătitor TVA, Split TVA și înregistrare RO e-Factura.',
-    defaultParam: '14399840',
-    paramLabel: 'Cod Unic de Înregistrare (CUI / CIF)',
-    examples: [
-      { label: 'eMAG (14399840)', value: '14399840' },
-      { label: 'Dedeman (2816464)', value: '2816464' },
-      { label: 'MCP România', value: 'RO43326553' },
-    ],
-    mockResult: (val) => ({
-      ok: true,
-      data: {
-        cui: val.replace(/\D/g, '') || '14399840',
-        denumire: val.includes('2816464') ? 'DEDEMAN S.R.L.' : 'DANTE INTERNATIONAL S.A.',
-        adresa: val.includes('2816464')
-          ? 'Mun. Bacău, Str. Alexei Tolstoi nr. 8'
-          : 'Mun. București, Șos. Virtuții nr. 148',
-        stare: 'ACTIV',
-        platitorTva: true,
-        tvaLaIncasare: false,
-        splitTVA: false,
-        statusROeFactura: true,
-        dataActualizare: new Date().toISOString().split('T')[0],
-      },
-    }),
-  },
-  portal_just_search: {
-    key: 'portal_just_search',
-    name: 'Portal Just Dosare',
-    badge: '📜',
-    category: 'Juridic & Instanțe',
-    description:
-      'Căutare automată de jurisprudență și dosare pe portal.just.ro pentru orice persoană juridică sau fizică.',
-    defaultParam: '14399840',
-    paramLabel: 'CUI, Denumire sau Număr Dosar',
-    examples: [
-      { label: 'DANTE INTERNATIONAL', value: 'DANTE INTERNATIONAL' },
-      { label: 'Dosar 19/122/2018', value: '19/122/2018' },
-    ],
-    mockResult: (val) => ({
-      ok: true,
-      query: val,
-      resultsCount: 2,
-      cases: [
-        {
-          numarDosar: '1240/3/2026',
-          institutie: 'TribunalulBUCURESTI',
-          sectie: 'Secția a VI-a Civilă',
-          obiect: 'pretentii comerciale',
-          stadiuProcesual: 'Fond',
-          data: '2026-03-10',
-          parti: [
-            { nume: 'DANTE INTERNATIONAL SA', calitate: 'Reclamant' },
-            { nume: 'LOGISTICS PARK SRL', calitate: 'Pârât' },
-          ],
-        },
-      ],
-    }),
-  },
-  bnr_exchange_rate: {
+  {
     key: 'bnr_exchange_rate',
     name: 'Curs Valutar BNR',
     badge: '💶',
-    category: 'Financiar',
+    category: 'Financiar & Valutar',
+    source: 'Banca Națională a României',
+    endpoint: 'GET /api/v1/bnr/exchange-rate',
+    mcpTool: 'bnr_exchange_rate',
     description:
-      'Cursurile valutare oficiale publicate zilnic de Banca Națională a României (BNR) cu suport pentru cotații istorice.',
-    defaultParam: 'EUR',
-    paramLabel: 'Cod Valută (EUR, USD, GBP, CHF)',
-    examples: [
-      { label: 'Euro (EUR)', value: 'EUR' },
-      { label: 'Dolar SUA (USD)', value: 'USD' },
-      { label: 'Liră Sterlină (GBP)', value: 'GBP' },
-      { label: 'Franc Elvețian (CHF)', value: 'CHF' },
+      'Cursuri valutare oficiale emise de BNR în fiecare zi bancară pentru 32+ valute internaționale, gramul de aur (XAU) și XDR.',
+    capabilities: [
+      '32+ valute oficiale actualizate zilnic la ora 13:00',
+      'Calcul automat cu multiplicatori oficiali (ex: 100 HUF, 100 JPY)',
+      'Revalidare inteligentă în fundal (Stale-While-Revalidate)',
+      'Latență de răspuns sub 50ms direct din memorie cache',
     ],
-    mockResult: (val) => {
-      const v = (val || 'EUR').toUpperCase();
-      const rates: Record<string, number> = { EUR: 4.9765, USD: 4.6231, GBP: 5.8912, CHF: 5.214 };
-      return {
-        ok: true,
-        moneda: v,
-        valoareRON: rates[v] || 4.9765,
-        dataEmitere: new Date().toISOString().split('T')[0],
-        bancaEmitenta: 'Banca Națională a României',
-        variatieZiPrecedenta: '+0.0012 RON',
-      };
-    },
+    paramFormat: 'Opțional: Cod ISO valută (ex: EUR, USD, GBP, CHF)',
   },
-  iban_validate: {
+  {
     key: 'iban_validate',
-    name: 'Validare IBAN RO',
+    name: 'Validare IBAN România',
     badge: '💳',
-    category: 'Financiar & Plăți',
+    category: 'Plăți & Trezorerie',
+    source: 'Standard ISO 13616 & Registrul Bancar BNR',
+    endpoint: 'GET /api/v1/iban/validate/:iban',
+    mcpTool: 'iban_validator',
     description:
-      'Validare matematică conform standardului ISO 13616 (MOD97), identificare cod BIC bancar și sucursală din România.',
-    defaultParam: 'RO49INGB0000999901234567',
-    paramLabel: 'Cont IBAN Românesc (24 caractere)',
-    examples: [
-      { label: 'ING Bank', value: 'RO49INGB0000999901234567' },
-      { label: 'Banca Transilvania', value: 'RO98BTRL0000000000000000' },
-      { label: 'IBAN Nevalid', value: 'RO00FAKE0000000000000000' },
+      'Validare matematică algoritmică a conturilor bancare din România conform standardului ISO 13616 (MOD97), cu detecția automată a băncii.',
+    capabilities: [
+      'Verificare algoritm MOD97 în sub 5 milisecunde',
+      'Identificare cod bancă (ex: BTRL, INGB, RNCB, BRDE)',
+      'Extragere denumire completă instituție bancară și cod BIC',
+      'Prevenire erori de tranzacționare în aplicații de plăți și ERP',
     ],
-    mockResult: (val) => {
-      const clean = val.replace(/\s+/g, '').toUpperCase();
-      const isValid = clean.startsWith('RO') && clean.length === 24 && !clean.includes('FAKE');
-      return {
-        ok: true,
-        iban: clean,
-        isValid,
-        tara: 'România (RO)',
-        banca: isValid
-          ? clean.includes('INGB')
-            ? 'ING Bank N.V. Amsterdam'
-            : 'Banca Transilvania S.A.'
-          : 'Necunoscută',
-        codBIC: isValid ? (clean.includes('INGB') ? 'INGBROBU' : 'BTRLRO22') : null,
-        checksumValida: isValid,
-        mesaj: isValid
-          ? 'IBAN conform standardului internațional ISO 13616.'
-          : 'Cifrele de control MOD97 sunt invalide.',
-      };
-    },
+    paramFormat: 'Cont IBAN românesc complet (24 caractere, prefix RO)',
   },
-  onrc_validate_regcom: {
+  {
+    key: 'portal_just_search',
+    name: 'Portal Justiție (Dosare)',
+    badge: '📜',
+    category: 'Juridic & Instanțe',
+    source: 'Ministerul Justiției (portalquery.just.ro)',
+    endpoint: 'GET /api/v1/just/cases',
+    mcpTool: 'portal_just_search',
+    description:
+      'Căutare automată de jurisprudență și dosare aflate pe rolul instanțelor de judecată (judecătorii, tribunale, curți de apel) din România.',
+    capabilities: [
+      'Interogare după denumire companie, CUI sau număr dosar',
+      'Stadiu procesual curent: Fond, Apel, Recurs',
+      'Părți în dosar (Reclamant, Pârât, Creditor, Debitor)',
+      'Obiectul dosarului și termene de judecată',
+    ],
+    paramFormat: 'CUI, denumire companie sau număr dosar (ex: 1240/3/2026)',
+  },
+  {
     key: 'onrc_validate_regcom',
     name: 'Validare RegCom ONRC',
     badge: '🏢',
     category: 'Registrul Comerțului',
+    source: 'Oficiul Național al Registrului Comerțului',
+    endpoint: 'GET /api/v1/onrc/validate/:numar',
+    mcpTool: 'onrc_validate_regcom',
     description:
-      'Validează structura legală a numărului de înregistrare ONRC (J/F/C, indicativ județ, număr ordine și an înființare).',
-    defaultParam: 'J40/372/2002',
-    paramLabel: 'Număr RegCom (Ex: J40/372/2002)',
-    examples: [
-      { label: 'Dante Int. (eMAG)', value: 'J40/372/2002' },
-      { label: 'Dedeman', value: 'J04/137/1992' },
-      { label: 'București 2024', value: 'J40/1234/2024' },
+      'Validare sintactică a structurii numărului de înregistrare la Registrul Comerțului (J/F/C/D), identificând județul și anul de înființare.',
+    capabilities: [
+      'Validare format legal societăți (J), persoane fizice (F) etc.',
+      'Identificare automată indicativ județ (40 = București, 04 = Bacău)',
+      'Extragere număr secvențial și an calendaristic',
+      'Standardizare pentru baze de date interne CRM/ERP',
     ],
-    mockResult: (val) => ({
-      ok: true,
-      rawInput: val,
-      isValid: true,
-      tipSocietate: 'J - Persoană Juridică (SRL / SA)',
-      judet: val.includes('04') ? 'Bacău (BC)' : 'Municipiul București (B)',
-      numarOrdine: 372,
-      anInregistrare: 2002,
-      formatStandard: val.toUpperCase(),
-    }),
+    paramFormat: 'Număr RegCom (ex: J40/372/2002 sau J04/137/1992)',
   },
-  onrc_company_lookup: {
+  {
     key: 'onrc_company_lookup',
-    name: 'Identificare ONRC',
+    name: 'Identificare Profil Firmă',
     badge: '🔍',
     category: 'Registrul Comerțului',
+    source: 'ONRC & Reconciliere Date Naționale',
+    endpoint: 'GET /api/v1/onrc/company/:cui',
+    mcpTool: 'onrc_company_lookup',
     description:
-      'Reconciliere automată între CUI fiscal, număr de înregistrare la Registrul Comerțului și sediul social.',
-    defaultParam: '14399840',
-    paramLabel: 'CUI sau Număr Înregistrare ONRC',
-    examples: [
-      { label: '14399840', value: '14399840' },
-      { label: 'J40/372/2002', value: 'J40/372/2002' },
+      'Reconciliere automată a identificatorilor comerciali: CUI fiscal, EUID (European Unique Identifier) și număr de Registrul Comerțului.',
+    capabilities: [
+      'Corelare automată între CUI și numărul de ordine la RegCom',
+      'Generare identificator european unic (EUID)',
+      'Formă juridică de organizare (SRL, SA, PFA)',
+      'Sediu social și localizare administrativă',
     ],
-    mockResult: (val) => ({
-      ok: true,
-      cui: val.startsWith('J') ? '14399840' : val,
-      nrRegCom: val.startsWith('J') ? val : 'J40/372/2002',
-      euid: `ROONRC.${val.startsWith('J') ? val : 'J40/372/2002'}`,
-      denumire: 'DANTE INTERNATIONAL S.A.',
-      sediuSocial: 'București Sectorul 6, Șos. Virtuții 148',
-      stareFirma: 'FUNCȚIUNE',
-    }),
+    paramFormat: 'CUI fiscal (ex: 14399840) sau număr RegCom',
   },
-};
+];
 
 export default function Home() {
   const [activeAITab, setActiveAITab] = useState<AITab>('openai');
-  const [activeToolKey, setActiveToolKey] = useState<ToolKey>('insolvency_risk_check');
-  const [paramInput, setParamInput] = useState<string>(TOOLS.insolvency_risk_check.defaultParam);
-  const [outputView, setOutputView] = useState<'card' | 'json'>('card');
   const [isCopied, setIsCopied] = useState<boolean>(false);
-  const [latency] = useState<number>(48);
-
-  const activeTool = TOOLS[activeToolKey];
-  const currentResult = activeTool.mockResult(paramInput);
-
-  const handleSelectTool = (key: ToolKey) => {
-    setActiveToolKey(key);
-    setParamInput(TOOLS[key].defaultParam);
-  };
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -545,7 +416,7 @@ def check_romanian_company(cui: str) -> dict:
 
         <div className="hero-actions">
           <a href="#unelte" className="btn-primary">
-            Testează Sandbox Interactiv
+            Explorează Cele 7 Unelte
           </a>
           <a href="#preturi" className="btn-secondary">
             Intră pe lista de așteptare
@@ -667,159 +538,58 @@ def check_romanian_company(cui: str) -> dict:
         </div>
       </section>
 
-      {/* Interactive 7-Tool Live Sandbox */}
-      <section className="sandbox-section" id="unelte">
+      {/* 7 Official Tools Information Showcase (Clean, Read-Only, No Mock Testing) */}
+      <section className="tools-catalog-section" id="unelte">
         <div className="section-head">
           <div className="badge-tag">
-            <span>⚡ Mod Sandbox Interactiv (Demo cu date reale)</span>
+            <span>🏛️ Catalog Oficial Unelte România</span>
           </div>
-          <h2 className="section-title">Cele 7 Unelte Oficiale România</h2>
+          <h2 className="section-title">Cele 7 Unelte Specializate</h2>
           <p className="section-subtitle">
-            Alege o unealtă din meniu, selectează o companie sau un parametru demo și observă viteza
-            și structura datelor returnate de gateway (răspunsuri demo bazate pe interogări reale
-            din producție).
+            Conectori securizați de mare viteză prin Model Context Protocol (MCP) și REST API către
+            principalele baze de date publice, juridice și financiare din România.
           </p>
         </div>
 
-        <div className="sandbox-container">
-          {/* Tools Sidebar */}
-          <div className="tools-sidebar">
-            {(Object.keys(TOOLS) as ToolKey[]).map((key) => {
-              const item = TOOLS[key];
-              const isSelected = item.key === activeToolKey;
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  className={`tool-selector-btn ${isSelected ? 'active' : ''}`}
-                  onClick={() => handleSelectTool(key)}
-                >
-                  <span className="tool-badge-icon">{item.badge}</span>
-                  <div className="tool-meta">
-                    <h4>{item.name}</h4>
-                    <p>{item.category}</p>
+        <div className="tools-grid">
+          {TOOLS_CATALOG.map((tool) => (
+            <div key={tool.key} className="tool-info-card">
+              <div className="card-top">
+                <div className="tool-header-main">
+                  <span className="tool-badge-icon">{tool.badge}</span>
+                  <div>
+                    <h3 className="tool-title">{tool.name}</h3>
+                    <span className="category-pill">{tool.category}</span>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Sandbox Workspace */}
-          <div className="sandbox-workspace">
-            <div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                {activeTool.badge} {activeTool.name}
-              </h3>
-              <p style={{ fontSize: '0.88rem', color: '#94a3b8', marginBottom: '1.2rem' }}>
-                {activeTool.description}
-              </p>
-            </div>
-
-            {/* Parameter Input & Presets */}
-            <div className="input-bar">
-              <input
-                type="text"
-                className="param-input"
-                placeholder={activeTool.paramLabel}
-                value={paramInput}
-                onChange={(e) => setParamInput(e.target.value)}
-              />
-              <button
-                type="button"
-                className="run-btn"
-                onClick={() => {
-                  /* trigger quick refresh feedback */
-                }}
-              >
-                <span>Rulează Unealta</span>
-                <span>▶</span>
-              </button>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="quick-examples">
-              <span className="examples-label">Exemple rapide:</span>
-              {activeTool.examples.map((ex) => (
-                <button
-                  type="button"
-                  key={ex.label}
-                  className="example-chip"
-                  onClick={() => setParamInput(ex.value)}
-                >
-                  {ex.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Output Panel */}
-            <div className="output-panel">
-              <div className="output-header">
-                <div className="execution-tag">
-                  <span>Status: 200 OK</span>
-                  <span>•</span>
-                  <span className="latency-pill">⚡ {latency}ms (SWR Redis)</span>
                 </div>
-                <div className="view-toggle">
-                  <button
-                    type="button"
-                    className={`toggle-btn ${outputView === 'card' ? 'active' : ''}`}
-                    onClick={() => setOutputView('card')}
-                  >
-                    Card Vizual
-                  </button>
-                  <button
-                    type="button"
-                    className={`toggle-btn ${outputView === 'json' ? 'active' : ''}`}
-                    onClick={() => setOutputView('json')}
-                  >
-                    JSON Brut
-                  </button>
-                </div>
+                <div className="source-tag">{tool.source}</div>
               </div>
 
-              {outputView === 'card' ? (
-                <div className="result-card">
-                  {Object.entries(
-                    currentResult.data
-                      ? (currentResult.data as Record<string, unknown>)
-                      : currentResult
-                  ).map(([k, v]) => {
-                    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-                      return null;
-                    }
-                    const strVal = Array.isArray(v) ? `${v.length} elemente` : String(v);
-                    const isStatus =
-                      k.toLowerCase().includes('status') || k.toLowerCase().includes('stare');
-                    return (
-                      <div key={k} className="result-item">
-                        <div className="result-label">{k}</div>
-                        {isStatus ? (
-                          <span
-                            className={`status-badge ${strVal.toUpperCase() === 'IN_BONIS' || strVal.toUpperCase() === 'ACTIV' ? 'in-bonis' : 'faliment'}`}
-                          >
-                            {strVal}
-                          </span>
-                        ) : (
-                          <div className="result-value">{strVal}</div>
-                        )}
-                      </div>
-                    );
-                  })}
+              <p className="tool-desc">{tool.description}</p>
+
+              <div className="tool-capabilities">
+                <div className="cap-label">Ce date furnizează:</div>
+                <ul className="cap-list">
+                  {tool.capabilities.map((cap, idx) => (
+                    <li key={idx} className="cap-item">
+                      <span className="cap-icon">✓</span>
+                      <span>{cap}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="card-footer-info">
+                <div className="endpoint-row">
+                  <span className="endpoint-badge">{tool.endpoint}</span>
+                  <span className="mcp-pill">MCP Tool: {tool.mcpTool}</span>
                 </div>
-              ) : (
-                <pre
-                  style={{
-                    margin: 0,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.85rem',
-                    color: '#a7f3d0',
-                  }}
-                >
-                  {JSON.stringify(currentResult, null, 2)}
-                </pre>
-              )}
+                <div className="param-hint">
+                  <span className="param-label">Parametru:</span> {tool.paramFormat}
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
