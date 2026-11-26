@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { PlanTierSchema } from '@mcpromania/types';
 import type { MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 
@@ -7,6 +8,7 @@ import type { AppEnv } from '../app-env.js';
 import type { GatewayEnv } from '../config/env.js';
 import { AppError } from '../core/errors.js';
 import type { RedisPort } from '../core/redis.js';
+import { extractBearerToken } from '../core/security.js';
 import type { SupabasePort } from '../core/supabase.js';
 import type { AuthContext } from '../core/types.js';
 
@@ -14,8 +16,8 @@ const CachedAuthSchema = z.object({
   apiKeyId: z.string().uuid(),
   tenantId: z.string().uuid(),
   keyName: z.string().min(1),
-  planTier: z.enum(['free', 'pro', 'agency', 'custom']).default('free'),
-  monthlyLimit: z.number().int().positive().default(100),
+  planTier: PlanTierSchema,
+  monthlyLimit: z.number().int().positive(),
 });
 
 export type AuthDeps = {
@@ -49,7 +51,7 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
     }
 
     // P1 #4: Only accept Authorization: Bearer <token>. Query string ?apiKey= is strictly disabled.
-    const token = readToken(c.req.header('authorization'));
+    const token = extractBearerToken(c.req.header('authorization'));
     if (!token) {
       throw new AppError(
         401,
@@ -137,16 +139,6 @@ async function recordFailedAuth(redis: RedisPort, ip: string): Promise<void> {
   } catch (error) {
     console.warn('Failed auth rate counter update failed:', error);
   }
-}
-
-function readToken(authorization: string | undefined): string | null {
-  if (authorization) {
-    const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
-    if (match?.[1]) {
-      return match[1];
-    }
-  }
-  return null;
 }
 
 async function readCache(redis: RedisPort, key: string): Promise<AuthContext | null> {

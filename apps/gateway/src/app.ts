@@ -8,6 +8,7 @@ import { AppError } from './core/errors.js';
 import { RedisQuotaLimiter } from './core/quota-limiter.js';
 import { RedisRateLimiter } from './core/rate-limiter.js';
 import type { RedisPort } from './core/redis.js';
+import { isMasterToken } from './core/security.js';
 import type { SupabasePort } from './core/supabase.js';
 import { SwrCache } from './core/swr-cache.js';
 import { createAuthMiddleware, revokeApiKey } from './middleware/auth.js';
@@ -145,9 +146,7 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
 
   // Management endpoint: Instant API Key Revocation (requires MASTER_API_KEY)
   app.post('/api/v1/auth/revoke', async (c) => {
-    const authHeader = c.req.header('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    if (!token || token !== deps.env.MASTER_API_KEY) {
+    if (!isMasterToken(c.req.header('authorization'), deps.env.MASTER_API_KEY)) {
       throw new AppError(401, 'UNAUTHORIZED', 'Acces neautorizat la endpointul de administrare');
     }
     const body = (await c.req.json().catch(() => ({}))) as {

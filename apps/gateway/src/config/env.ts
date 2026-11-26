@@ -6,7 +6,7 @@ export const EnvSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  MASTER_API_KEY: z.string().min(1).default('mcpr_live_secret123'),
+  MASTER_API_KEY: z.string().min(1).optional(),
   ANAF_API_URL: z.string().url().default('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva'),
   BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
   JUST_API_URL: z.string().url().default('http://portalquery.just.ro/Query.asmx'),

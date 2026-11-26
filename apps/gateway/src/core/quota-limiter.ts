@@ -1,3 +1,4 @@
+import { AppError } from './errors.js';
 import type { RedisPort } from './redis.js';
 
 export type QuotaResult = {
@@ -11,6 +12,23 @@ export type QuotaResult = {
 export type QuotaLimiterOptions = {
   now?: () => number;
 };
+
+export const CONSUME_QUOTA_SCRIPT = `
+local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+local limit = tonumber(ARGV[1])
+local ttl = tonumber(ARGV[2])
+if not current or not limit or not ttl or limit < 1 or ttl < 1 then
+  return redis.error_reply('invalid quota arguments')
+end
+if current >= limit then
+  return {0, current, 0}
+end
+local used = redis.call('INCR', KEYS[1])
+if used == 1 then
+  redis.call('EXPIRE', KEYS[1], ttl)
+end
+return {1, used, math.max(0, limit - used)}
+`;
 
 export class RedisQuotaLimiter {
   private readonly now: () => number;
@@ -40,14 +58,12 @@ export class RedisQuotaLimiter {
         reset,
       };
     } catch (error) {
-      console.warn('Quota limiter check error, failing open:', error);
-      return {
-        allowed: true,
-        limit,
-        used: 0,
-        remaining: limit,
-        reset,
-      };
+      console.error('Quota limiter check error, failing closed:', error);
+      throw new AppError(
+        503,
+        'SERVICE_UNAVAILABLE',
+        'Serviciul de verificare a cotei este temporar indisponibil'
+      );
     }
   }
 
@@ -57,44 +73,28 @@ export class RedisQuotaLimiter {
     const reset = getMonthResetTimestamp(nowMs);
 
     try {
-      // 1. Check current usage
-      const raw = await this.redis.get(key);
-      const currentUsed = Number(raw ?? '0');
-
-      if (currentUsed >= limit) {
-        return {
-          allowed: false,
-          limit,
-          used: currentUsed,
-          remaining: 0,
-          reset,
-        };
+      const result = await this.redis.eval(CONSUME_QUOTA_SCRIPT, 1, key, limit, 35 * 86_400);
+      if (!Array.isArray(result) || result.length !== 3) {
+        throw new Error('Invalid quota script response');
       }
-
-      // 2. Increment usage
-      const newUsed = await this.redis.incr(key);
-      if (newUsed === 1) {
-        // Set TTL to 35 days so monthly stats persist past the end of the month
-        await this.redis.expire(key, 35 * 86_400);
+      const [allowedValue, usedValue, remainingValue] = result.map(Number);
+      if (![allowedValue, usedValue, remainingValue].every(Number.isFinite)) {
+        throw new Error('Invalid quota script response');
       }
-
-      const allowed = newUsed <= limit;
       return {
-        allowed,
+        allowed: allowedValue === 1,
         limit,
-        used: newUsed,
-        remaining: Math.max(0, limit - newUsed),
+        used: usedValue,
+        remaining: remainingValue,
         reset,
       };
     } catch (error) {
-      console.warn('Quota limiter Redis error, failing open:', error);
-      return {
-        allowed: true,
-        limit,
-        used: 0,
-        remaining: limit,
-        reset,
-      };
+      console.error('Quota limiter Redis error, failing closed:', error);
+      throw new AppError(
+        503,
+        'SERVICE_UNAVAILABLE',
+        'Serviciul de verificare a cotei este temporar indisponibil'
+      );
     }
   }
 }

@@ -3,6 +3,7 @@ import type { Hono } from 'hono';
 import type { AppEnv } from '../app-env.js';
 import type { CircuitBreaker } from '../core/circuit-breaker.js';
 import type { RedisPort } from '../core/redis.js';
+import { isMasterToken } from '../core/security.js';
 
 export function registerHealthRoute(
   app: Hono<AppEnv>,
@@ -15,6 +16,11 @@ export function registerHealthRoute(
     masterApiKey?: string;
   }
 ): void {
+  // Process liveness endpoint for load-balancer (Caddy): never fails on external upstream glitches (ANAF/BNR/Just).
+  app.get('/health/live', (c) => {
+    return c.json({ ok: true, status: 'ok' });
+  });
+
   app.get('/health', async (c) => {
     let redis: 'up' | 'down' = 'down';
     try {
@@ -41,9 +47,7 @@ export function registerHealthRoute(
 
     // In production, unauthenticated public requests get a clean status without leaking internal topology.
     // Full diagnostic details (circuits + redis status) are available in test mode or with MASTER_API_KEY.
-    const authHeader = c.req.header('authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-    const isMaster = Boolean(deps.masterApiKey && token === deps.masterApiKey);
+    const isMaster = isMasterToken(c.req.header('authorization'), deps.masterApiKey);
     const isTest = process.env.NODE_ENV === 'test';
 
     if (!isMaster && !isTest) {

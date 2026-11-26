@@ -1,3 +1,4 @@
+import { PlanTierSchema } from '@mcpromania/types';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
@@ -9,8 +10,8 @@ const VerifyRowSchema = z.object({
   api_key_id: z.string().uuid(),
   tenant_id: z.string().uuid(),
   key_name: z.string().min(1),
-  plan_tier: z.enum(['free', 'pro', 'agency', 'custom']).default('free'),
-  monthly_limit: z.number().int().positive().default(100),
+  plan_tier: PlanTierSchema,
+  monthly_limit: z.number().int().positive(),
 });
 
 export type UsageLogInput = {

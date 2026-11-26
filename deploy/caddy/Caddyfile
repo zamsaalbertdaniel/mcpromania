@@ -11,10 +11,10 @@ api.mcpromania.ro {
         -Server
     }
 
-    # Load-balance across both gateway containers with active health check
+    # Load-balance across both gateway containers with active liveness check
     reverse_proxy 127.0.0.1:4000 127.0.0.1:4001 {
         lb_policy round_robin
-        health_uri /health
+        health_uri /health/live
         health_interval 5s
         health_timeout 2s
         flush_interval -1

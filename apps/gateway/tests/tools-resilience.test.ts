@@ -202,6 +202,11 @@ describe('Resilience: Circuit Breakers across external upstreams', () => {
     expect(h2.status).toBe('degraded');
     expect(h2.circuits.just).toBe('OPEN');
 
+    // /health/live stays 200 ok so Caddy keeps routing healthy services (BNR, IBAN, ANAF)
+    const liveHealth = await app.request('/health/live');
+    expect(liveHealth.status).toBe(200);
+    expect(await liveHealth.json()).toEqual({ ok: true, status: 'ok' });
+
     // Fast-fail: Next Portal Just request is blocked immediately by Circuit Breaker without calling upstream
     const fastFail = await app.request('/api/v1/just/cases?query=dosar_test', { headers });
     expect(fastFail.status).toBe(503);

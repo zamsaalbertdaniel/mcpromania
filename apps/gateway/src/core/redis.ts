@@ -15,6 +15,7 @@ export interface RedisPort {
   del(key: string): Promise<number>;
   incr(key: string): Promise<number>;
   expire(key: string, seconds: number): Promise<number>;
+  eval(script: string, numberOfKeys: number, ...args: Array<string | number>): Promise<unknown>;
   ping(): Promise<string>;
   quit(): Promise<void>;
   readonly status: string;
@@ -41,6 +42,7 @@ export function createRedis(url: string): RedisPort {
     del: (key) => client.del(key),
     incr: (key) => client.incr(key),
     expire: (key, seconds) => client.expire(key, seconds),
+    eval: (script, numberOfKeys, ...args) => client.eval(script, numberOfKeys, ...args),
     ping: () => client.ping(),
     quit: async () => {
       await client.quit();

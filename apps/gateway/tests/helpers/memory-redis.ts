@@ -62,6 +62,85 @@ export class MemoryRedis implements RedisPort {
     return 1;
   }
 
+  async eval(
+    script: string,
+    numberOfKeys: number,
+    ...args: Array<string | number>
+  ): Promise<unknown> {
+    if (script.includes('ZREMRANGEBYSCORE')) {
+      if (numberOfKeys !== 1 || args.length !== 6) {
+        throw new Error('Unexpected rate limit script arguments');
+      }
+      const [keyArg, nowArg, windowStartArg, limitArg, windowMsArg, memberArg] = args;
+      const key = String(keyArg);
+      const now = Number(nowArg);
+      const windowStart = Number(windowStartArg);
+      const limit = Number(limitArg);
+      const windowMs = Number(windowMsArg);
+      const member = String(memberArg);
+
+      if (
+        !Number.isFinite(now) ||
+        !Number.isFinite(windowStart) ||
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        !Number.isInteger(windowMs) ||
+        windowMs < 1
+      ) {
+        throw new Error('Invalid rate limit script arguments');
+      }
+
+      this.zremrangebyscore(key, 0, windowStart);
+      const count = this.zcard(key);
+      if (count >= limit) {
+        const range = this.zrange(key, 0, 0);
+        const oldestScore = range.length >= 2 ? Number(range[1]) : now;
+        const reset = Math.ceil((oldestScore + windowMs) / 1000);
+        return [0, 0, reset];
+      }
+
+      this.zadd(key, now, member);
+      this.zsetExpiry.set(key, this.now() + windowMs);
+
+      const remaining = Math.max(0, limit - (count + 1));
+      let oldestScore = now;
+      if (count > 0) {
+        const range = this.zrange(key, 0, 0);
+        if (range.length >= 2) {
+          oldestScore = Number(range[1]);
+        }
+      }
+      const reset = Math.ceil((oldestScore + windowMs) / 1000);
+      return [1, remaining, reset];
+    }
+
+    if (numberOfKeys !== 1 || args.length !== 3) {
+      throw new Error('Unexpected quota script arguments');
+    }
+    const [keyArg, limitArg, ttlArg] = args;
+    const key = String(keyArg);
+    const limit = Number(limitArg);
+    const ttl = Number(ttlArg);
+    if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(ttl) || ttl < 1) {
+      throw new Error('Invalid quota script arguments');
+    }
+    const entry = this.strings.get(key);
+    if (
+      entry?.expiresAt !== null &&
+      entry?.expiresAt !== undefined &&
+      entry.expiresAt <= this.now()
+    ) {
+      this.strings.delete(key);
+    }
+    const current = Number(this.strings.get(key)?.value ?? '0');
+    if (current >= limit) return [0, current, 0];
+    const used = current + 1;
+    const expiresAt =
+      used === 1 ? this.now() + ttl * 1000 : (this.strings.get(key)?.expiresAt ?? null);
+    this.strings.set(key, { value: String(used), expiresAt });
+    return [1, used, Math.max(0, limit - used)];
+  }
+
   async ping(): Promise<string> {
     return 'PONG';
   }

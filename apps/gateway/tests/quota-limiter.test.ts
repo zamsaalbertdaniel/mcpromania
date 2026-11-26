@@ -93,7 +93,18 @@ describe('RedisQuotaLimiter', () => {
     expect(allowedDec.remaining).toBe(2);
   });
 
-  it('fails open when Redis errors', async () => {
+  it('enforces quota atomically under concurrent requests', async () => {
+    const redis = new MemoryRedis();
+    const limiter = new RedisQuotaLimiter(redis);
+    const results = await Promise.all(
+      Array.from({ length: 30 }, () => limiter.consume('key_concurrent', 10))
+    );
+    expect(results.filter((result) => result.allowed)).toHaveLength(10);
+    expect(results.filter((result) => !result.allowed)).toHaveLength(20);
+    expect(Math.max(...results.map((result) => result.used))).toBe(10);
+  });
+
+  it('fails closed with 503 when Redis errors', async () => {
     const failingRedis: RedisPort = {
       status: 'ready',
       get: async () => {
@@ -111,6 +122,9 @@ describe('RedisQuotaLimiter', () => {
       expire: async () => {
         throw new Error('Redis down');
       },
+      eval: async () => {
+        throw new Error('Redis down');
+      },
       ping: async () => 'PONG',
       quit: async () => {},
       multi: () => {
@@ -119,8 +133,13 @@ describe('RedisQuotaLimiter', () => {
     };
 
     const limiter = new RedisQuotaLimiter(failingRedis);
-    const result = await limiter.consume('key_failopen', 100);
-    expect(result.allowed).toBe(true);
-    expect(result.remaining).toBe(100);
+    await expect(limiter.consume('key_failclosed', 100)).rejects.toMatchObject({
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+    });
+    await expect(limiter.check('key_failclosed', 100)).rejects.toMatchObject({
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+    });
   });
 });

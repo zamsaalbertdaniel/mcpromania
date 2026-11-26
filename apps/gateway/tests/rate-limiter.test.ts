@@ -76,7 +76,26 @@ describe('rate limiter', () => {
     expect(allowedAfterWindow.status).toBe(200);
   });
 
-  it('fails open when redis encounters an error', async () => {
+  it('enforces rate limit atomically under concurrent requests', async () => {
+    const supabase = createSupabaseMock();
+    const app = createTestApp({
+      env: { RATE_LIMIT_PER_MINUTE: 10 },
+      supabase: supabase.port,
+      fetchImpl: async () => jsonResponse(anafPayload()),
+    });
+
+    const responses = await Promise.all(
+      Array.from({ length: 25 }, () =>
+        app.request('/api/v1/iban/validate/RO37BTRL0000000000000001', {
+          headers: { authorization: `Bearer ${TEST_API_KEY}` },
+        })
+      )
+    );
+    expect(responses.filter((res) => res.status === 200)).toHaveLength(10);
+    expect(responses.filter((res) => res.status === 429)).toHaveLength(15);
+  });
+
+  it('fails closed with 503 when redis encounters an error', async () => {
     const failingRedis = {
       status: 'ready',
       get: async () => {
@@ -92,6 +111,9 @@ describe('rate limiter', () => {
         throw new Error('Redis connection refused');
       },
       expire: async () => {
+        throw new Error('Redis connection refused');
+      },
+      eval: async () => {
         throw new Error('Redis connection refused');
       },
       ping: async () => {
@@ -114,8 +136,9 @@ describe('rate limiter', () => {
       headers: { authorization: `Bearer ${TEST_API_KEY}` },
     });
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { ok: boolean };
-    expect(body.ok).toBe(true);
+    expect(response.status).toBe(503);
+    const body = (await response.json()) as { ok: boolean; error: { code: string } };
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe('SERVICE_UNAVAILABLE');
   });
 });

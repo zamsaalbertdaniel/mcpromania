@@ -113,4 +113,17 @@ describe('Instant API Key Revocation', () => {
     const r2 = await app.request(`/api/v1/anaf/cui/${VALID_CUI}`, { headers: userHeaders });
     expect(r2.status).toBe(401);
   });
+
+  it('rejects revoke calls when MASTER_API_KEY is not configured', async () => {
+    const app = createTestApp({ env: { MASTER_API_KEY: undefined } });
+    const res = await app.request('/api/v1/auth/revoke', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer mcpr_live_secret123',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ keyHash: 'some-hash' }),
+    });
+    expect(res.status).toBe(401);
+  });
 });
