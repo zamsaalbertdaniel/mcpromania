@@ -14,9 +14,11 @@ api.mcpromania.ro {
     # Load-balance across both gateway containers with active liveness check
     reverse_proxy 127.0.0.1:4000 127.0.0.1:4001 {
         lb_policy round_robin
+        lb_try_duration 1s
         health_uri /health/live
         health_interval 5s
         health_timeout 2s
         flush_interval -1
+        header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
     }
 }
