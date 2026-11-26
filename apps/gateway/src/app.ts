@@ -144,20 +144,41 @@ export function createApp(deps: GatewayDeps): Hono<AppEnv> {
   });
   registerOpenApiRoute(app);
 
-  // Management endpoint: Instant API Key Revocation (requires MASTER_API_KEY)
+  // Management endpoint: Persistent + Instant API Key Revocation (requires MASTER_API_KEY)
   app.post('/api/v1/auth/revoke', async (c) => {
     if (!isMasterToken(c.req.header('authorization'), deps.env.MASTER_API_KEY)) {
       throw new AppError(401, 'UNAUTHORIZED', 'Acces neautorizat la endpointul de administrare');
     }
     const body = (await c.req.json().catch(() => ({}))) as {
-      apiKeyId?: string;
-      keyHash?: string;
+      apiKeyId?: unknown;
+      keyHash?: unknown;
     };
-    if (!body.apiKeyId && !body.keyHash) {
+    const apiKeyId = typeof body.apiKeyId === 'string' ? body.apiKeyId.trim() : undefined;
+    const keyHash = typeof body.keyHash === 'string' ? body.keyHash.trim() : undefined;
+    if (!apiKeyId && !keyHash) {
       throw new AppError(400, 'BAD_REQUEST', 'Specificați apiKeyId sau keyHash pentru revocare');
     }
-    await revokeApiKey(deps.redis, { apiKeyId: body.apiKeyId, keyHash: body.keyHash });
-    return c.json({ ok: true, message: 'Cheie API revocată cu succes' });
+
+    let persisted = false;
+    let revokedCount = 0;
+    const apiKeyIds: string[] = apiKeyId ? [apiKeyId] : [];
+    const keyHashes: string[] = keyHash ? [keyHash] : [];
+
+    if (deps.supabase.revokeApiKeyPersistent) {
+      const result = await deps.supabase.revokeApiKeyPersistent({ apiKeyId, keyHash });
+      persisted = result.persisted;
+      revokedCount = result.revokedCount;
+      apiKeyIds.push(...result.apiKeyIds);
+      keyHashes.push(...result.keyHashes);
+    }
+
+    await revokeApiKey(deps.redis, { apiKeyIds, keyHashes });
+    return c.json({
+      ok: true,
+      persisted,
+      revokedCount,
+      message: 'Cheie API revocată cu succes',
+    });
   });
 
   app.use('/api/v1/*', auth);

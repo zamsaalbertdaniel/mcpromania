@@ -1,22 +1,37 @@
 import { z } from 'zod';
 
-export const EnvSchema = z.object({
-  PORT: z.coerce.number().int().positive().default(4000),
-  REDIS_URL: z.string().min(1).default('redis://127.0.0.1:6379'),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  MASTER_API_KEY: z.string().min(1).optional(),
-  ANAF_API_URL: z.string().url().default('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva'),
-  BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
-  JUST_API_URL: z.string().url().default('http://portalquery.just.ro/Query.asmx'),
-  RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
-  AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
-  CIRCUIT_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
-  CIRCUIT_COOLDOWN_MS: z.coerce.number().int().positive().default(30_000),
-  REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(3000).default(3000),
-  JUST_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
-});
+export const EnvSchema = z
+  .object({
+    PORT: z.coerce.number().int().positive().default(4000),
+    REDIS_URL: z.string().min(1).default('redis://127.0.0.1:6379'),
+    SUPABASE_URL: z.string().url(),
+    SUPABASE_ANON_KEY: z.string().min(1),
+    GATEWAY_ADMIN_URL: z.string().url().optional(),
+    GATEWAY_EDGE_SECRET: z.string().min(16).optional(),
+    MASTER_API_KEY: z.string().min(1).optional(),
+    ANAF_API_URL: z
+      .string()
+      .url()
+      .default('https://webservicesp.anaf.ro/api/PlatitorTvaRest/v9/tva'),
+    BNR_XML_URL: z.string().url().default('https://curs.bnr.ro/nbrfxrates.xml'),
+    JUST_API_URL: z.string().url().default('http://portalquery.just.ro/Query.asmx'),
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
+    AUTH_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+    CIRCUIT_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(5),
+    CIRCUIT_COOLDOWN_MS: z.coerce.number().int().positive().default(30_000),
+    REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().max(3000).default(3000),
+    JUST_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  })
+  .superRefine((val, ctx) => {
+    const hasUrl = Boolean(val.GATEWAY_ADMIN_URL);
+    const hasSecret = Boolean(val.GATEWAY_EDGE_SECRET);
+    if (hasUrl !== hasSecret) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'GATEWAY_ADMIN_URL and GATEWAY_EDGE_SECRET must both be set together',
+      });
+    }
+  });
 
 export type GatewayEnv = z.infer<typeof EnvSchema>;
 

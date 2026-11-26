@@ -75,7 +75,7 @@ export const RomanianCuiSchema = z
   .trim()
   .superRefine((value, ctx) => {
     if (!isValidRomanianCui(value)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'CUI invalid' });
+      ctx.addIssue({ code: 'custom', message: 'CUI invalid' });
     }
   })
   .transform((value) => {

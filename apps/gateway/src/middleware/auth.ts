@@ -119,14 +119,28 @@ export function createAuthMiddleware(deps: AuthDeps): MiddlewareHandler<AppEnv> 
 
 export async function revokeApiKey(
   redis: RedisPort,
-  options: { apiKeyId?: string; keyHash?: string }
-): Promise<void> {
-  if (options.keyHash) {
-    await redis.del(`mcpr:auth:${options.keyHash}`);
-    await redis.set(`mcpr:auth:invalid:${options.keyHash}`, '1', 'EX', 86_400);
+  options: {
+    apiKeyId?: string;
+    keyHash?: string;
+    apiKeyIds?: string[];
+    keyHashes?: string[];
   }
+): Promise<void> {
+  const keyHashes = new Set<string>(options.keyHashes ?? []);
+  if (options.keyHash) {
+    keyHashes.add(options.keyHash);
+  }
+  const apiKeyIds = new Set<string>(options.apiKeyIds ?? []);
   if (options.apiKeyId) {
-    await redis.set(`mcpr:auth:revoked:${options.apiKeyId}`, '1', 'EX', 86_400);
+    apiKeyIds.add(options.apiKeyId);
+  }
+
+  for (const keyHash of keyHashes) {
+    await redis.del(`mcpr:auth:${keyHash}`);
+    await redis.set(`mcpr:auth:invalid:${keyHash}`, '1', 'EX', 86_400);
+  }
+  for (const apiKeyId of apiKeyIds) {
+    await redis.set(`mcpr:auth:revoked:${apiKeyId}`, '1', 'EX', 86_400);
   }
 }
 
