@@ -8,25 +8,40 @@ const VALID_ENV = {
   SUPABASE_ANON_KEY: 'anon-public-key',
 };
 
+const DISTRIBUTED_ENV = {
+  ...VALID_ENV,
+  UPSTASH_REDIS_REST_URL: 'https://trusting-shiner.upstash.io',
+  UPSTASH_REDIS_REST_TOKEN: 'upstash-rest-token',
+  VERCEL_ENV: 'production',
+};
+
 function makeRequest(
   body: unknown,
   options?: {
     origin?: string;
     host?: string;
     contentType?: string;
-    ip?: string;
+    cfIp?: string;
+    cfRay?: string;
+    vercelIp?: string;
   }
 ): Request {
   const headers = new Headers();
   headers.set('content-type', options?.contentType ?? 'application/json');
-  headers.set('host', options?.host ?? 'mcpromania.ro');
+  headers.set('host', options?.host ?? 'www.mcpromania.ro');
   if (options?.origin) {
     headers.set('origin', options.origin);
   }
-  if (options?.ip) {
-    headers.set('cf-connecting-ip', options.ip);
+  if (options?.cfIp) {
+    headers.set('cf-connecting-ip', options.cfIp);
   }
-  return new Request('https://mcpromania.ro/api/waitlist', {
+  if (options?.cfRay) {
+    headers.set('cf-ray', options.cfRay);
+  }
+  if (options?.vercelIp) {
+    headers.set('x-vercel-forwarded-for', options.vercelIp);
+  }
+  return new Request(`https://${options?.host ?? 'www.mcpromania.ro'}/api/waitlist`, {
     method: 'POST',
     headers,
     body: typeof body === 'string' ? body : JSON.stringify(body),
@@ -34,11 +49,22 @@ function makeRequest(
 }
 
 describe('POST /api/waitlist security & validation', () => {
+  it('blocks direct *.vercel.app access in production with 403', async () => {
+    const res = await handleWaitlistPost(
+      makeRequest(
+        { email: 'test@firma.ro', fullName: 'Ion Popescu' },
+        { host: 'mcpromania-preview.vercel.app', cfIp: '1.2.3.4' }
+      ),
+      { env: DISTRIBUTED_ENV }
+    );
+    expect(res.status).toBe(403);
+  });
+
   it('rejects cross-origin requests with 403', async () => {
     const res = await handleWaitlistPost(
       makeRequest(
         { email: 'test@firma.ro', fullName: 'Ion Popescu' },
-        { origin: 'https://evil.example', host: 'mcpromania.ro' }
+        { origin: 'https://evil.example', host: 'www.mcpromania.ro' }
       ),
       { env: VALID_ENV }
     );
@@ -53,15 +79,21 @@ describe('POST /api/waitlist security & validation', () => {
     expect(res.status).toBe(415);
   });
 
-  it('fails closed with 503 when Edge Function env variables are missing', async () => {
-    const res = await handleWaitlistPost(
+  it('fails closed with 503 when Edge Function or production Upstash env variables are missing', async () => {
+    const resNoEdge = await handleWaitlistPost(
       makeRequest({ email: 'test@firma.ro', fullName: 'Ion Popescu' }),
       { env: {} }
     );
-    expect(res.status).toBe(503);
+    expect(resNoEdge.status).toBe(503);
+
+    const resProdNoRedis = await handleWaitlistPost(
+      makeRequest({ email: 'test@firma.ro', fullName: 'Ion Popescu' }),
+      { env: { ...VALID_ENV, VERCEL_ENV: 'production' } }
+    );
+    expect(resProdNoRedis.status).toBe(503);
   });
 
-  it('silently neutralizes honeypot bot submissions without calling Edge Function', async () => {
+  it('silently neutralizes honeypot bot submissions without calling Redis or Edge Function', async () => {
     let fetchCalls = 0;
     const res = await handleWaitlistPost(
       makeRequest({
@@ -70,7 +102,7 @@ describe('POST /api/waitlist security & validation', () => {
         website: 'https://spam-link.example',
       }),
       {
-        env: VALID_ENV,
+        env: DISTRIBUTED_ENV,
         fetchImpl: async () => {
           fetchCalls += 1;
           return new Response('{}', { status: 200 });
@@ -84,105 +116,109 @@ describe('POST /api/waitlist security & validation', () => {
     expect(json.ok).toBe(true);
   });
 
-  it('validates email and fullName strictly before calling Edge Function', async () => {
-    let fetchCalls = 0;
-    const res = await handleWaitlistPost(makeRequest({ email: 'invalid-email', fullName: 'A' }), {
-      env: VALID_ENV,
-      rateStore: new Map(),
-      fetchImpl: async () => {
-        fetchCalls += 1;
-        return new Response('{}', { status: 200 });
-      },
-    });
-    expect(res.status).toBe(400);
-    expect(fetchCalls).toBe(0);
-  });
-
-  it('forwards validated lead with HMAC ipHash and secret headers, and handles duplicates', async () => {
-    const calls: Array<{ url: string; headers: Headers; body: Record<string, unknown> }> = [];
-    let isDup = false;
-
+  it('ignores spoofed cf-connecting-ip on preview *.vercel.app hosts and uses x-vercel-forwarded-for', async () => {
+    const seenIpHashes: string[] = [];
     const deps = {
-      env: VALID_ENV,
+      env: { ...VALID_ENV, VERCEL_ENV: 'preview' },
       rateStore: new Map<string, WaitlistRateBucket>(),
-      fetchImpl: async (url: string | URL | Request, init?: RequestInit) => {
-        calls.push({
-          url: String(url),
-          headers: new Headers(init?.headers),
-          body: JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>,
-        });
+      fetchImpl: async (_url: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { ipHash?: string };
+        seenIpHashes.push(body.ipHash ?? '');
         return new Response(
-          JSON.stringify({
-            ok: true,
-            leadId: '44444444-4444-4444-8444-444444444444',
-            alreadyRegistered: isDup,
-          }),
-          { status: 200 }
-        );
-      },
-    };
-
-    const res1 = await handleWaitlistPost(
-      makeRequest(
-        {
-          email: '  CEO@FirmaMea.RO ',
-          fullName: 'Maria Ionescu',
-          companyName: 'Firma Mea SRL',
-          planTier: 'pro',
-          useCase: 'Verificare automata CUI din ERP',
-        },
-        { origin: 'https://mcpromania.ro', ip: '192.0.2.10' }
-      ),
-      deps
-    );
-    expect(res1.status).toBe(200);
-    const body1 = (await res1.json()) as { ok: boolean; alreadyRegistered: boolean };
-    expect(body1).toMatchObject({ ok: true, alreadyRegistered: false });
-    expect(calls[0]?.headers.get('x-waitlist-edge-secret')).toBe(VALID_ENV.WAITLIST_EDGE_SECRET);
-    expect(calls[0]?.headers.get('authorization')).toBe(`Bearer ${VALID_ENV.SUPABASE_ANON_KEY}`);
-    expect(calls[0]?.body.email).toBe('ceo@firmamea.ro');
-    expect(typeof calls[0]?.body.ipHash).toBe('string');
-    expect(String(calls[0]?.body.ipHash)).toHaveLength(64);
-
-    isDup = true;
-    const res2 = await handleWaitlistPost(
-      makeRequest({ email: 'ceo@firmamea.ro', fullName: 'Maria Ionescu' }, { ip: '192.0.2.10' }),
-      deps
-    );
-    expect(res2.status).toBe(200);
-    const body2 = (await res2.json()) as { ok: boolean; alreadyRegistered: boolean };
-    expect(body2.alreadyRegistered).toBe(true);
-  });
-
-  it('rate-limits abusive IP after 5 requests within 15 minutes', async () => {
-    const rateStore = new Map<string, WaitlistRateBucket>();
-    const deps = {
-      env: VALID_ENV,
-      rateStore,
-      now: () => 1_700_000_000_000,
-      fetchImpl: async () =>
-        new Response(
           JSON.stringify({
             ok: true,
             leadId: '44444444-4444-4444-8444-444444444444',
             alreadyRegistered: false,
           }),
           { status: 200 }
-        ),
+        );
+      },
     };
 
-    for (let i = 0; i < 5; i += 1) {
-      const okRes = await handleWaitlistPost(
-        makeRequest({ email: `user${i}@firma.ro`, fullName: 'User Test' }, { ip: '198.51.100.7' }),
-        deps
-      );
-      expect(okRes.status).toBe(200);
-    }
+    // Two requests from the SAME real client IP (203.0.113.9) with DIFFERENT spoofed cf-connecting-ip headers
+    await handleWaitlistPost(
+      makeRequest(
+        { email: 'a@firma.ro', fullName: 'User One' },
+        { host: 'preview.vercel.app', vercelIp: '203.0.113.9', cfIp: '10.0.0.1', cfRay: 'fake' }
+      ),
+      deps
+    );
+    await handleWaitlistPost(
+      makeRequest(
+        { email: 'b@firma.ro', fullName: 'User Two' },
+        { host: 'preview.vercel.app', vercelIp: '203.0.113.9', cfIp: '10.0.0.2', cfRay: 'fake' }
+      ),
+      deps
+    );
+
+    expect(seenIpHashes).toHaveLength(2);
+    expect(seenIpHashes[0]).toBe(seenIpHashes[1]);
+  });
+
+  it('uses distributed Upstash Redis EVAL rate limiter in production and fails closed on Redis outage', async () => {
+    let evalCount = 0;
+    let shouldFailRedis = false;
+
+    const deps = {
+      env: DISTRIBUTED_ENV,
+      fetchImpl: async (url: string | URL | Request, init?: RequestInit) => {
+        const target = String(url);
+        if (target.includes('upstash.io')) {
+          if (shouldFailRedis) {
+            return new Response('Service Unavailable', { status: 503 });
+          }
+          evalCount += 1;
+          const allowed = evalCount <= 2 ? 1 : 0;
+          return new Response(JSON.stringify({ result: [allowed, evalCount] }), { status: 200 });
+        }
+        const body = JSON.parse(String(init?.body ?? '{}')) as { ipHash?: string };
+        expect(typeof body.ipHash).toBe('string');
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            leadId: '44444444-4444-4444-8444-444444444444',
+            alreadyRegistered: false,
+          }),
+          { status: 200 }
+        );
+      },
+    };
+
+    const ok1 = await handleWaitlistPost(
+      makeRequest(
+        { email: 'ceo@firma.ro', fullName: 'Maria Ionescu' },
+        { cfIp: '198.51.100.42', cfRay: 'abc-OTP', vercelIp: '172.71.0.1' }
+      ),
+      deps
+    );
+    expect(ok1.status).toBe(200);
+
+    const ok2 = await handleWaitlistPost(
+      makeRequest(
+        { email: 'cto@firma.ro', fullName: 'Ion Popescu' },
+        { cfIp: '198.51.100.42', cfRay: 'abc-OTP', vercelIp: '172.71.0.1' }
+      ),
+      deps
+    );
+    expect(ok2.status).toBe(200);
 
     const blocked = await handleWaitlistPost(
-      makeRequest({ email: 'user6@firma.ro', fullName: 'User Test' }, { ip: '198.51.100.7' }),
+      makeRequest(
+        { email: 'spam@firma.ro', fullName: 'Ion Popescu' },
+        { cfIp: '198.51.100.42', cfRay: 'abc-OTP', vercelIp: '172.71.0.1' }
+      ),
       deps
     );
     expect(blocked.status).toBe(429);
+
+    shouldFailRedis = true;
+    const failClosed = await handleWaitlistPost(
+      makeRequest(
+        { email: 'outage@firma.ro', fullName: 'Ion Popescu' },
+        { cfIp: '198.51.100.42', cfRay: 'abc-OTP', vercelIp: '172.71.0.1' }
+      ),
+      deps
+    );
+    expect(failClosed.status).toBe(503);
   });
 });

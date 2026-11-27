@@ -4,9 +4,22 @@ import { WaitlistSubmissionSchema } from '@mcpromania/types';
 
 const MAX_BODY_BYTES = 8_192;
 const EDGE_TIMEOUT_MS = 4_000;
+const REDIS_TIMEOUT_MS = 2_000;
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
+const RATE_LIMIT_WINDOW_MS = RATE_LIMIT_WINDOW_SECONDS * 1000;
 const MAX_TRACKED_IPS = 5_000;
+
+const RATE_LIMIT_LUA = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+end
+if count > tonumber(ARGV[1]) then
+  return {0, count}
+end
+return {1, count}
+`;
 
 export type WaitlistRateBucket = {
   count: number;
@@ -18,6 +31,9 @@ export type WaitlistDeps = {
     WAITLIST_EDGE_URL?: string;
     WAITLIST_EDGE_SECRET?: string;
     SUPABASE_ANON_KEY?: string;
+    UPSTASH_REDIS_REST_URL?: string;
+    UPSTASH_REDIS_REST_TOKEN?: string;
+    VERCEL_ENV?: string;
   };
   fetchImpl?: typeof fetch;
   now?: () => number;
@@ -36,32 +52,51 @@ function jsonResponse(body: Record<string, unknown>, status = 200): Response {
   });
 }
 
-function isSameOrigin(req: Request): boolean {
+function getRequestHost(req: Request): string {
+  const raw = req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '';
+  return raw.split(',')[0].trim().toLowerCase();
+}
+
+function isSameOrigin(req: Request, host: string): boolean {
   const origin = req.headers.get('origin');
   if (!origin) {
     return true;
   }
-  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
   if (!host) {
     return false;
   }
   try {
-    return new URL(origin).host.toLowerCase() === host.split(',')[0].trim().toLowerCase();
+    return new URL(origin).host.toLowerCase() === host;
   } catch {
     return false;
   }
 }
 
-function extractClientIp(req: Request): string {
-  const raw =
-    req.headers.get('cf-connecting-ip') ??
-    req.headers.get('x-real-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0] ??
-    'unknown';
-  return raw.trim() || 'unknown';
+function extractClientIp(req: Request, host: string): string {
+  // Vercel sets x-vercel-forwarded-for & x-real-ip from the actual peer connection
+  // and overwrites client-supplied x-forwarded-for. Clients hitting *.vercel.app directly
+  // could spoof cf-connecting-ip, so never trust cf-connecting-ip on *.vercel.app hosts.
+  const isVercelDeploymentHost = host.endsWith('.vercel.app');
+  const vercelEdgeIp =
+    req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip')?.trim() ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+
+  if (isVercelDeploymentHost) {
+    return vercelEdgeIp || 'unknown';
+  }
+
+  // On custom domain behind Cloudflare, cf-connecting-ip carries the end-user IP when cf-ray is present.
+  const cfIp = req.headers.get('cf-connecting-ip')?.trim();
+  const hasCfRay = Boolean(req.headers.get('cf-ray')?.trim());
+  if (cfIp && hasCfRay) {
+    return cfIp;
+  }
+
+  return vercelEdgeIp || cfIp || 'unknown';
 }
 
-function checkRateLimit(
+function checkLocalMemoryRateLimit(
   store: Map<string, WaitlistRateBucket>,
   key: string,
   nowMs: number
@@ -94,8 +129,58 @@ function checkRateLimit(
   return true;
 }
 
+async function checkDistributedRedisRateLimit(
+  fetchFn: typeof fetch,
+  restUrl: string,
+  restToken: string,
+  ipHash: string
+): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REDIS_TIMEOUT_MS);
+
+  try {
+    const endpoint = restUrl.replace(/\/+$/, '');
+    const res = await fetchFn(endpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${restToken}`,
+      },
+      body: JSON.stringify([
+        'EVAL',
+        RATE_LIMIT_LUA,
+        1,
+        `mcpr:waitlist:rl:${ipHash}`,
+        RATE_LIMIT_MAX_ATTEMPTS,
+        RATE_LIMIT_WINDOW_SECONDS,
+      ]),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Upstash REST HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as { result?: unknown; error?: string };
+    if (data.error || !Array.isArray(data.result)) {
+      throw new Error(data.error ?? 'Invalid Upstash EVAL response');
+    }
+
+    return Number(data.result[0]) === 1;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function handleWaitlistPost(req: Request, deps: WaitlistDeps): Promise<Response> {
-  if (!isSameOrigin(req)) {
+  const host = getRequestHost(req);
+
+  // Block direct access to *.vercel.app deployment URL in production so traffic cannot bypass Cloudflare/custom domain rules.
+  if (deps.env.VERCEL_ENV === 'production' && host.endsWith('.vercel.app')) {
+    return jsonResponse({ ok: false, error: 'Accesul direct pe acest host nu este permis.' }, 403);
+  }
+
+  if (!isSameOrigin(req, host)) {
     return jsonResponse({ ok: false, error: 'Origine neautorizată' }, 403);
   }
 
@@ -107,6 +192,18 @@ export async function handleWaitlistPost(req: Request, deps: WaitlistDeps): Prom
   const edgeUrl = deps.env.WAITLIST_EDGE_URL?.trim();
   const edgeSecret = deps.env.WAITLIST_EDGE_SECRET?.trim();
   if (!edgeUrl || !edgeSecret || edgeSecret.length < 16) {
+    return jsonResponse(
+      { ok: false, error: 'Serviciul de înscrieri este temporar indisponibil.' },
+      503
+    );
+  }
+
+  const upstashUrl = deps.env.UPSTASH_REDIS_REST_URL?.trim();
+  const upstashToken = deps.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  const hasDistributedRedis = Boolean(upstashUrl && upstashToken);
+
+  if (deps.env.VERCEL_ENV === 'production' && !hasDistributedRedis) {
+    console.error('UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN missing in production');
     return jsonResponse(
       { ok: false, error: 'Serviciul de înscrieri este temporar indisponibil.' },
       503
@@ -129,7 +226,7 @@ export async function handleWaitlistPost(req: Request, deps: WaitlistDeps): Prom
     return jsonResponse({ ok: false, error: 'JSON invalid.' }, 400);
   }
 
-  // Honeypot anti-bot trap: pretend success without hitting Supabase
+  // Honeypot anti-bot trap: pretend success without hitting Redis/Supabase
   if (typeof rawBody.website === 'string' && rawBody.website.trim().length > 0) {
     return jsonResponse({
       ok: true,
@@ -138,16 +235,49 @@ export async function handleWaitlistPost(req: Request, deps: WaitlistDeps): Prom
     });
   }
 
+  const fetchFn = deps.fetchImpl ?? fetch;
   const nowMs = (deps.now ?? Date.now)();
-  const store = deps.rateStore ?? defaultRateStore;
-  const ip = extractClientIp(req);
+  const ip = extractClientIp(req, host);
   const ipHash = createHmac('sha256', edgeSecret).update(ip).digest('hex');
 
-  if (!checkRateLimit(store, ipHash, nowMs)) {
-    return jsonResponse(
-      { ok: false, error: 'Prea multe încercări. Vă rugăm să încercați din nou peste 15 minute.' },
-      429
-    );
+  if (hasDistributedRedis && upstashUrl && upstashToken) {
+    try {
+      const allowed = await checkDistributedRedisRateLimit(
+        fetchFn,
+        upstashUrl,
+        upstashToken,
+        ipHash
+      );
+      if (!allowed) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: 'Prea multe încercări. Vă rugăm să încercați din nou peste 15 minute.',
+          },
+          429
+        );
+      }
+    } catch (error) {
+      console.error(
+        'Waitlist Redis rate-limit error, failing closed:',
+        error instanceof Error ? error.message : 'unknown error'
+      );
+      return jsonResponse(
+        { ok: false, error: 'Serviciul de protecție anti-abuz este temporar indisponibil.' },
+        503
+      );
+    }
+  } else {
+    const store = deps.rateStore ?? defaultRateStore;
+    if (!checkLocalMemoryRateLimit(store, ipHash, nowMs)) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: 'Prea multe încercări. Vă rugăm să încercați din nou peste 15 minute.',
+        },
+        429
+      );
+    }
   }
 
   const parsedSubmission = WaitlistSubmissionSchema.safeParse(rawBody);
@@ -161,7 +291,6 @@ export async function handleWaitlistPost(req: Request, deps: WaitlistDeps): Prom
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), EDGE_TIMEOUT_MS);
-  const fetchFn = deps.fetchImpl ?? fetch;
 
   try {
     const headers: Record<string, string> = {
