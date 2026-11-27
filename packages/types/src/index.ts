@@ -356,3 +356,33 @@ export const ApiErrorSchema = z.object({
   }),
 });
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+export const WaitlistSubmissionSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(5, 'Adresa de email este prea scurtă')
+    .max(254, 'Adresa de email este prea lungă')
+    .email('Introduceți o adresă de email validă'),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, 'Numele complet trebuie să aibă cel puțin 2 caractere')
+    .max(120, 'Numele complet este prea lung'),
+  companyName: z
+    .string()
+    .trim()
+    .max(160, 'Numele companiei este prea lung')
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  planTier: PlanTierSchema.default('pro'),
+  useCase: z
+    .string()
+    .trim()
+    .max(500, 'Descrierea cazului de utilizare nu poate depăși 500 de caractere')
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  source: z.string().trim().min(1).max(64).optional().default('website'),
+});
+export type WaitlistSubmission = z.infer<typeof WaitlistSubmissionSchema>;

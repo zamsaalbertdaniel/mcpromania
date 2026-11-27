@@ -221,6 +221,9 @@ importers:
       typescript:
         specifier: ^5.5.3
         version: 5.9.3
+      vitest:
+        specifier: ^4.1.12
+        version: 4.1.12(@types/node@20.19.43)(vite@7.3.8(@types/node@20.19.43)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/gateway:
     dependencies:
